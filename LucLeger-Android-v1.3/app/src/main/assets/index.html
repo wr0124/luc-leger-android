@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+  <meta name="theme-color" content="#101b25">
+  <meta name="luc-platform" content="android-native">
+  <meta name="description" content="为 Android 手机设计的 Luc Léger 20 米折返跑训练器：Palier、自定义间歇、计时和本地训练记录。">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  
+  <style>
+:root{
+  color-scheme:dark;--bg:#0d161f;--surface:#14222e;--panel:#1b2a36;--soft:#233541;--line:#2d4150;
+  --text:#f5f8f7;--muted:#94a8b2;--accent:#b8fc61;--accent-text:#14230d;
+  --running:#b8fc61;--rest:#7bcafd;--danger:#ff9a90;--radius:24px;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans SC","Microsoft Yahei",sans-serif;
+  font-synthesis:none;-webkit-font-smoothing:antialiased;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);min-height:100dvh}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled,input:disabled,select:disabled{cursor:not-allowed;opacity:.55}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--rest);outline-offset:3px}
+.hidden,[hidden]{display:none!important}
+.app-shell{max-width:540px;min-height:100dvh;margin:0 auto;padding:0 19px 115px;position:relative}
+.topbar{height:91px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--line)}
+.brand-symbol{height:44px;width:44px;border:2px solid var(--accent);border-radius:13px;display:grid;place-items:center;color:var(--accent);font-weight:800;font-size:29px}
+.brand-text{display:flex;flex-direction:column;gap:2px;flex:1}.brand-text strong{font-size:19px;letter-spacing:.05em;font-weight:900}.brand-dot{color:var(--accent);font-size:12px;vertical-align:3px}
+.eyebrow{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.17em}.eyebrow.accent{color:var(--accent)}
+.icon-button{height:43px;width:43px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:13px;display:grid;place-items:center}
+main{padding-top:27px}
+.section-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:23px}
+h1{font-size:30px;font-weight:850;letter-spacing:-.04em;margin:5px 0 0}
+h2{font-size:17px;margin:0 0 20px;letter-spacing:-.02em}
+.state-pill{border:1px solid var(--line);padding:9px 11px;border-radius:50px;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;white-space:nowrap;color:var(--muted)}
+.state-pill .indicator{height:7px;width:7px;background:#8b9da8;border-radius:50%}
+.state-pill.run{color:var(--running);border-color:#536949}.state-pill.run .indicator{background:var(--running)}
+.state-pill.rest{color:var(--rest);border-color:#42708a}.state-pill.rest .indicator{background:var(--rest)}
+.training-card{border:1px solid var(--line);background:linear-gradient(152deg,#1c303c 0%,#15232f 55%,#14212a 100%);border-radius:var(--radius);padding:22px 20px 19px;box-shadow:0 15px 55px #00000017}
+.top-metrics{display:flex;justify-content:space-between;align-items:flex-start}.top-metrics>div{display:flex;flex-direction:column;gap:5px}.metric-right{text-align:right}
+.metric-label{font-size:11px;color:var(--muted);font-weight:750;letter-spacing:.045em}.metric-value{font-size:33px;font-weight:850;font-variant-numeric:tabular-nums;line-height:1.17}.metric-value small{font-size:16px;color:var(--muted)}
+.timer-area{display:flex;justify-content:center;padding:22px 0 18px}
+.timer-ring{--progress:0;--ring:var(--running);height:min(64vw,260px);width:min(64vw,260px);border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--ring) calc(var(--progress)*1%),#3a4c57 0);transition:background .14s linear;box-shadow:0 0 50px #b8fc6110}
+.timer-ring:before{content:"";position:absolute;inset:12px;border-radius:50%;background:radial-gradient(circle at 50% 30%,#203542,#15242e 75%)}
+.timer-ring.rest{--ring:var(--rest)}
+.timer-inside{display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;gap:5px}
+.timer-state{color:var(--ring);font-size:13px;font-weight:850;letter-spacing:.13em}
+.big-time{font-size:clamp(48px,13.4vw,75px);line-height:1.2;font-weight:900;letter-spacing:-.07em;font-variant-numeric:tabular-nums}
+.timer-hint{color:var(--muted);font-size:12px}
+.shuttle-area{background:#253641;border:1px solid #304753;border-radius:17px;min-height:90px;padding:14px 12px;display:flex;align-items:center;gap:11px}
+.shuttle-icon{display:grid;place-items:center;color:var(--accent);background:#344b3c;border-radius:11px;font-size:27px;font-weight:900;width:43px;height:43px;flex-shrink:0}
+.shuttle-caption{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}.shuttle-caption.right{text-align:right;flex:0 0 auto}
+.shuttle-time,.speed-number{font-variant-numeric:tabular-nums;font-size:23px;font-weight:850;line-height:1.1;white-space:nowrap}.shuttle-time{color:var(--accent)}
+.shuttle-time small,.speed-number small{font-size:11px;font-weight:650;color:var(--muted)}
+.bar-section{margin-top:25px}.bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:750;margin-bottom:11px}
+.progress-track{height:7px;background:#3a4c57;border-radius:30px;overflow:hidden}.progress-fill{height:100%;width:0;background:var(--accent);border-radius:30px;transition:width .1s linear}
+.distance-row{border-top:1px solid var(--line);margin-top:19px;padding-top:14px;display:flex;justify-content:space-between;gap:7px;color:var(--muted);font-size:11px;flex-wrap:wrap}.distance-row b{color:var(--text);font-size:13px}
+.controls{position:sticky;bottom:calc(77px + env(safe-area-inset-bottom));z-index:9;margin-top:15px;padding:6px 0;background:linear-gradient(180deg,transparent 0%,var(--bg) 30%,var(--bg) 100%);border-radius:17px}.primary-button{width:100%;border:none;border-radius:17px;background:var(--accent);color:var(--accent-text);min-height:65px;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 5px 22px #b8fc611a;touch-action:manipulation}
+.primary-button:active{transform:scale(.99)}.play-glyph{font-size:19px}
+.secondary-controls{display:flex;gap:12px}.secondary-button{min-height:65px;flex:1;border-radius:17px;border:1px solid var(--line);color:var(--text);background:var(--soft);font-size:17px;font-weight:800}
+.secondary-button.danger-button{background:transparent;color:var(--danger);border-color:#695353}
+.field-note{font-size:12px;color:var(--muted);line-height:1.8;margin:16px 3px 25px}
+.session-preview{padding:20px;border:1px solid var(--line);background:var(--surface);border-radius:18px;display:grid;gap:9px}.preview-text{font-size:15px;font-weight:750;line-height:1.6}.link-button{border:none;background:transparent;color:var(--accent);padding:0;text-align:left;font-size:13px;font-weight:750;width:max-content}
+.bottom-nav{position:fixed;z-index:10;bottom:0;left:50%;transform:translateX(-50%);width:min(540px,100%);background:#111f2af5;border-top:1px solid var(--line);padding:9px 16px calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-around;backdrop-filter:blur(16px)}
+.nav-item{border:0;background:transparent;color:#879aa5;display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-height:48px;font-size:11px;font-weight:800}.nav-item.selected{color:var(--accent)}.nav-icon{font-size:23px;line-height:26px}
+.panel{border:1px solid var(--line);border-radius:20px;background:var(--surface);padding:21px 17px;margin-bottom:15px}
+.preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:22px}
+.preset-button{background:var(--soft);border:1px solid var(--line);border-radius:13px;color:var(--text);padding:14px 6px 12px;display:flex;align-items:center;flex-direction:column;gap:5px;text-align:center}.preset-button strong{font-size:15px;white-space:nowrap}.preset-button small{font-size:10px;color:var(--muted)}.preset-button.chosen{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.form-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:800;margin:14px 0 8px}
+.input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 11px}.field{font-size:12px;font-weight:700;line-height:1.4;display:flex;flex-direction:column;gap:8px}.field span{font-size:10px;color:var(--muted)}
+input[type=number],select,textarea{background:var(--soft);border:1px solid var(--line);color:var(--text);border-radius:11px;min-height:48px;padding:10px 12px;max-width:100%;width:100%;font-size:17px;font-weight:750}select{font-size:13px}.field select{font-size:12px}
+input[type=range]{width:100%;accent-color:var(--accent);height:30px}
+.input-help{color:var(--muted);line-height:1.8;font-size:12px;margin:14px 0 0}
+.switch-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);position:relative;cursor:pointer}
+.switch-line strong,.switch-line small{display:block}.switch-line strong{font-size:13px}.switch-line small{color:var(--muted);font-size:11px;line-height:1.4;margin-top:5px}.switch-line input{position:absolute;opacity:0;width:1px;height:1px}.switch{width:46px;height:26px;border-radius:30px;position:relative;flex-shrink:0;background:#46545d;transition:background .2s}.switch:before{content:"";position:absolute;top:4px;left:4px;height:18px;width:18px;background:#fff;border-radius:50%;transition:transform .2s}.switch-line input:checked+.switch{background:#75b848}.switch-line input:checked+.switch:before{transform:translateX(20px)}.switch-line input:focus-visible+.switch{outline:3px solid var(--rest)}
+.formula-card{padding:15px;background:#273943;border:1px solid var(--line);border-radius:12px;color:var(--accent);font-weight:750;font-size:12px;line-height:1.6;margin-top:17px}
+.volume-field{margin-top:20px}.test-beep-button{background:var(--soft);border:1px solid var(--line);border-radius:12px;color:var(--text);font-weight:750;width:100%;height:46px;margin-top:7px}.settings-save{margin:18px 0 20px}
+.note-warning{background:#423c23;border:1px solid #746b36;color:#ffda8a;border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px}
+.history-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.history-stats>div{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:16px 12px;display:flex;flex-direction:column;gap:11px}.history-stats strong{font-size:27px;font-variant-numeric:tabular-nums}.history-stats strong small{font-size:12px;color:var(--muted)}
+.history-header{margin:28px 1px 14px;display:flex;align-items:center;justify-content:space-between}.history-header h2{margin:0}.history-list{display:grid;gap:12px}.history-record{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:15px}.history-record-top{display:flex;justify-content:space-between;gap:9px;align-items:center}.history-record-top strong{font-size:15px}.history-date{font-size:11px;color:var(--muted)}.history-record-details{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted);margin-top:12px}.history-record-details b{color:var(--text)}.history-record-note{font-size:12px;color:var(--muted);margin:12px 0 0;line-height:1.65;overflow-wrap:anywhere}.delete-record{background:none;border:0;color:var(--muted);font-size:12px;padding:4px}.empty-state{border:1px dashed var(--line);border-radius:16px;text-align:center;color:var(--muted);padding:40px 20px;font-size:13px;line-height:1.8}
+.finish-dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:26px;width:calc(100% - 35px);max-width:420px;padding:26px 20px;box-shadow:0 20px 90px #0008}.finish-dialog::backdrop{background:#050c12d8}.finish-dialog h2{text-align:center;font-size:24px;margin:8px 0}.finish-dialog p{text-align:center;color:var(--muted);font-size:13px;line-height:1.6}.finish-emoji{width:60px;height:60px;display:grid;place-items:center;background:var(--accent);color:var(--accent-text);font-size:30px;font-weight:900;border-radius:50%;margin:0 auto}.finish-result{text-align:center;border-radius:14px;background:var(--soft);padding:14px;font-size:14px;font-weight:800;margin:15px 0}.finish-dialog textarea{font-size:13px;font-weight:400;resize:vertical;margin-bottom:16px}.finish-dialog .primary-button{min-height:54px;font-size:16px}
+.toast{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:93px;max-width:min(400px,88vw);background:#e0f0cf;color:#1c3020;border-radius:12px;padding:12px 17px;font-size:13px;box-shadow:0 10px 30px #0005;opacity:0;pointer-events:none;transition:opacity .2s}.toast.show{opacity:1}
+body.bright{color-scheme:light;--bg:#f2f5ec;--surface:#fff;--panel:#fff;--soft:#ecf1e7;--line:#cfdbd0;--text:#172b2d;--muted:#586e70;--accent:#356d1b;--accent-text:#fff;--running:#397a1b;--rest:#0267a0;--danger:#ad322b}
+body.bright .training-card{background:linear-gradient(150deg,#fafdf8,#e8f1e9);box-shadow:0 7px 35px #2e513b15}
+body.bright .timer-ring{background:conic-gradient(var(--ring) calc(var(--progress)*1%),#c7d8cc 0)}
+body.bright .timer-ring:before{background:#f7fbf5}
+body.bright .shuttle-area{background:#e0ebdd;border-color:#c9d9c8}
+body.bright .shuttle-icon{background:#c5dbbf}
+body.bright .progress-track{background:#c7d8cc}
+body.bright .formula-card{background:#e9f2e7}
+body.bright .bottom-nav{background:#fffef5f2}
+body.bright .timer-area{color:var(--text)}
+@media(min-width:600px){body{background:linear-gradient(130deg,#09131b,#263b42)}body.bright{background:#e3eae1}.app-shell{background:var(--bg);min-height:100dvh;border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+@media(max-width:360px){.app-shell{padding-left:11px;padding-right:11px}.training-card{padding:18px 13px}.shuttle-area{gap:6px}.shuttle-caption .metric-label{font-size:9px}.speed-number{font-size:20px}.big-time{font-size:50px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+.training-card.beep-flash{border-color:var(--running);box-shadow:0 0 0 3px var(--running),0 0 32px #b8fc613a}
+
+</style>
+  <title>Luc Léger · 20m 训练器 v1.1</title>
+  
+  
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-symbol" aria-hidden="true"><span>↔</span></div>
+      <div class="brand-text"><span class="eyebrow">20 M SHUTTLE TRAINING</span><strong>LUC LÉGER <span class="brand-dot">●</span></strong></div>
+      <button class="icon-button" id="settings-shortcut" aria-label="打开设置" title="训练设置">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="16" cy="17" r="2.5" fill="var(--bg)"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <section class="screen active" id="screen-train" aria-labelledby="train-heading">
+        <div class="section-heading">
+          <div><div class="eyebrow accent">TODAY'S SESSION</div><h1 id="train-heading">开始训练</h1></div>
+          <span id="state-pill" class="state-pill ready"><span class="indicator"></span>准备就绪</span>
+        </div>
+        <div class="training-card" id="training-card">
+          <div class="top-metrics">
+            <div><span class="metric-label" id="unit-label">当前组数</span><span class="metric-value" id="unit-value">1 <small>/ 4</small></span></div>
+            <div class="metric-right"><span class="metric-label">当前 PALIER</span><span class="metric-value" id="palier-value">01</span></div>
+          </div>
+          <div class="timer-area">
+            <div class="timer-ring" id="timer-ring" style="--progress:0">
+              <div class="timer-inside">
+                <span class="timer-state" id="phase-label">准备开始</span>
+                <span class="big-time" id="time-remaining" aria-label="剩余倒计时">01:00</span>
+                <span class="timer-hint" id="phase-hint">跑步时间</span>
+              </div>
+            </div>
+          </div>
+          <div class="shuttle-area">
+            <div class="shuttle-icon" aria-hidden="true">↔</div>
+            <div class="shuttle-caption"><span class="metric-label">下一个 20 米提示</span><span class="shuttle-time" id="next-beep">8.47 <small>秒</small></span></div>
+            <div class="shuttle-caption right"><span class="metric-label">当前速度</span><span class="speed-number" id="speed-label">8.5 <small>km/h</small></span></div>
+          </div>
+          <div class="bar-section"><div class="bar-label"><span id="segment-status">第 1 / 4 组</span><span id="total-time">全程 08:30</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
+          <div class="distance-row"><span>已到达 <b id="shuttles-value">0</b> 次折返点</span><span>预计距离 <b id="distance-value">0</b> m</span></div>
+        </div>
+        <div class="controls" id="controls">
+          <button class="primary-button" id="start-button"><span class="play-glyph">▶</span><span id="start-button-label">开始训练</span></button>
+          <div class="secondary-controls hidden" id="active-controls">
+            <button class="secondary-button pause-button" id="pause-button">Ⅱ 暂停</button>
+            <button class="secondary-button danger-button" id="stop-button">■ 结束</button>
+          </div>
+        </div>
+        <p class="field-note" id="runner-note">准备两条间距 20 米的线，按提示到达折返点。建议保持屏幕亮起、打开声音。</p>
+        <div class="session-preview"><span class="eyebrow">YOUR PLAN</span><div class="preview-text" id="plan-summary">4 组 × 1 分钟 · 休息 90 秒</div><button class="link-button" id="edit-plan">修改训练 ↗</button></div>
+      </section>
+
+      <section class="screen" id="screen-settings" aria-labelledby="settings-heading" hidden>
+        <div class="section-heading"><div><div class="eyebrow accent">BUILD YOUR SESSION</div><h1 id="settings-heading">训练设置</h1></div></div>
+        <div id="editing-lock" class="note-warning hidden">训练进行中，先结束训练才能修改设置。</div>
+        <div class="panel">
+          <h2>快速方案</h2>
+          <div class="preset-grid">
+            <button type="button" class="preset-button" data-preset="easy"><strong>4 × 1′</strong><small>休息 90 秒</small></button>
+            <button type="button" class="preset-button" data-preset="two"><strong>2 × 2′</strong><small>休息 90 秒</small></button>
+            <button type="button" class="preset-button" data-preset="test"><strong>正式模拟</strong><small>每级 60 秒</small></button>
+          </div>
+          <label class="form-label" for="mode">训练模式</label>
+          <select id="mode"><option value="interval">间歇训练 · Intervalles</option><option value="test">连续测试 · Test Luc Léger</option></select>
+        </div>
+        <div class="panel" id="interval-fields">
+          <h2>间歇训练</h2>
+          <div class="input-grid">
+            <label class="field">组数 <span>Groupes</span><input id="groups" type="number" min="1" max="30" step="1" inputmode="numeric" value="4"></label>
+            <label class="field">每组跑步（秒） <span>Course</span><input id="runSec" type="number" min="10" max="600" step="5" inputmode="numeric" value="60"></label>
+            <label class="field">组间休息（秒） <span>Repos</span><input id="restSec" type="number" min="0" max="600" step="5" inputmode="numeric" value="90"></label>
+            <label class="field">起始 Palier <span>Niveau</span><input id="startPalierInterval" type="number" min="1" max="30" step="1" inputmode="numeric" value="1"></label>
+          </div>
+          <label class="switch-line"><span><strong>每组增加 1 个 Palier</strong><small>关闭时所有组保持同一速度</small></span><input type="checkbox" id="progressive" role="switch"><span class="switch"></span></label>
+        </div>
+        <div class="panel hidden" id="test-fields">
+          <h2>连续 Luc Léger 模拟</h2>
+          <div class="input-grid">
+            <label class="field">起始 Palier<input id="startPalierTest" type="number" min="1" max="30" step="1" inputmode="numeric" value="1"></label>
+            <label class="field">结束 Palier<input id="endPalier" type="number" min="1" max="30" step="1" inputmode="numeric" value="10"></label>
+            <label class="field">每级时长（秒）<input id="stageSec" type="number" min="30" max="180" step="10" inputmode="numeric" value="60"></label>
+          </div>
+          <p class="input-help">连续模式中 Palier 自动递增，20 米提示跨级连续计算；与特定考试录音带的取整时间可能不同。</p>
+        </div>
+        <div class="panel">
+          <h2>Palier 速度设置</h2>
+          <div class="input-grid">
+            <label class="field">Palier 1 速度（km/h）<select id="baseSpeed"><option value="8.5">8.5 · 常见版本</option><option value="8">8.0 · 另一版本</option></select></label>
+            <label class="field">每级增加（km/h）<input id="speedStep" type="number" min="0" max="2" step="0.1" inputmode="decimal" value="0.5"></label>
+            <label class="field">折返距离（m）<input id="shuttleMeters" type="number" min="10" max="50" step="1" inputmode="numeric" value="20"></label>
+          </div>
+          <div class="formula-card" id="formula-card">Palier 1 = 8.5 km/h · 每 20m 约 8.47 秒</div>
+        </div>
+        <div class="panel">
+          <h2>提示与显示</h2>
+          <label class="switch-line"><span><strong>Beep 声音提示</strong><small>到达折返点时发声，建议开启音量</small></span><input type="checkbox" id="sound" role="switch" checked><span class="switch"></span></label>
+          <label class="switch-line"><span><strong>振动提示（Android）</strong><small>浏览器支持时启用，不能代替声音</small></span><input type="checkbox" id="vibrate" role="switch" checked><span class="switch"></span></label>
+          <label class="switch-line"><span><strong>户外高亮模式</strong><small>浅色背景，适合日光下查看</small></span><input type="checkbox" id="bright" role="switch"><span class="switch"></span></label>
+          <label class="field volume-field">声音音量 <span id="volume-label">75%</span><input id="volume" type="range" min="0" max="100" value="75"></label>
+          <button class="test-beep-button" id="test-beep" type="button">♪ 测试 Beep / 振动</button>
+          <p class="input-help">需要点击“开始训练”来激活音频。锁屏或切换其他 App 时，浏览器可能暂停计时提示；训练时尽量保持页面在前台。</p>
+        </div>
+        <button class="primary-button settings-save" id="save-and-train">✓ 保存设置并返回训练</button>
+      </section>
+
+      <section class="screen" id="screen-history" aria-labelledby="history-heading" hidden>
+        <div class="section-heading"><div><div class="eyebrow accent">YOUR PROGRESS</div><h1 id="history-heading">训练记录</h1></div></div>
+        <div class="history-stats"><div><span class="metric-label">训练次数</span><strong id="history-count">0</strong></div><div><span class="metric-label">累计跑步</span><strong id="history-minutes">0 <small>分</small></strong></div><div><span class="metric-label">总折返次数</span><strong id="history-shuttles">0</strong></div></div>
+        <div class="history-header"><h2>最近训练</h2><button id="export-csv" class="link-button">导出 CSV ↗</button></div>
+        <div id="history-list" class="history-list"><div class="empty-state">还没有训练记录。完成一次训练后会自动保存在这台手机上。</div></div>
+        <p class="field-note">记录仅保存在这台设备的浏览器中。清理浏览器数据或卸载后可能丢失，建议定期导出 CSV。</p>
+      </section>
+    </main>
+    <nav class="bottom-nav" aria-label="主导航">
+      <button data-screen="train" class="nav-item selected" aria-current="page"><span class="nav-icon">◉</span><span>训练</span></button>
+      <button data-screen="settings" class="nav-item"><span class="nav-icon">⚙</span><span>设置</span></button>
+      <button data-screen="history" class="nav-item"><span class="nav-icon">▥</span><span>记录</span></button>
+    </nav>
+  </div>
+
+  <dialog id="finish-dialog" class="finish-dialog">
+    <form method="dialog" id="finish-form">
+      <div class="finish-emoji">✓</div><h2 id="finish-title">训练完成</h2>
+      <p id="finish-description">记录本次训练的体感疲劳程度。</p>
+      <div class="finish-result" id="finish-result">4 组 · 0 次折返</div>
+      <label class="form-label" for="rating">整体疲劳 / RPE <span id="rating-value">5 / 10</span></label>
+      <input id="rating" type="range" min="1" max="10" value="5" step="1">
+      <label class="form-label" for="session-note">备注（可选）</label>
+      <textarea id="session-note" rows="2" maxlength="150" placeholder="例如：最后一组稍累，节奏跟得上"></textarea>
+      <button type="submit" id="save-session" class="primary-button">保存训练记录</button>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- Core and app execute after all controls have been parsed -->
+<script>
+/* Luc Léger Trainer — pure timing/planning logic; also testable in Node. */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root) root.LucCore = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  const DEFAULTS = Object.freeze({
+    mode: 'interval', groups: 4, runSec: 60, restSec: 90,
+    startPalier: 1, progressive: false, endPalier: 10, stageSec: 60,
+    baseSpeed: 8.5, speedStep: 0.5, shuttleMeters: 20,
+    sound: true, vibrate: true, volume: 0.75, bright: false,
+  });
+  function between(x, min, max, defaultValue) {
+    const n = Number(x);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : defaultValue;
+  }
+  function normalize(raw = {}) {
+    const x = { ...DEFAULTS, ...raw };
+    return {
+      mode: x.mode === 'test' ? 'test' : 'interval',
+      groups: Math.round(between(x.groups, 1, 30, 4)),
+      runSec: Math.round(between(x.runSec, 10, 600, 60)),
+      restSec: Math.round(between(x.restSec, 0, 600, 90)),
+      startPalier: Math.round(between(x.startPalier, 1, 30, 1)),
+      progressive: Boolean(x.progressive),
+      endPalier: Math.round(between(x.endPalier, 1, 30, 10)),
+      stageSec: Math.round(between(x.stageSec, 30, 180, 60)),
+      baseSpeed: between(x.baseSpeed, 4, 18, 8.5),
+      speedStep: between(x.speedStep, 0, 2, 0.5),
+      shuttleMeters: between(x.shuttleMeters, 10, 50, 20),
+      sound: Boolean(x.sound), vibrate: Boolean(x.vibrate),
+      volume: between(x.volume, 0, 1, 0.75), bright: Boolean(x.bright),
+    };
+  }
+  const round = n => Math.round(n * 1000000) / 1000000;
+  function speedFor(palier, cfg) { return cfg.baseSpeed + (palier - 1) * cfg.speedStep; }
+  function shuttleSec(palier, cfg) { return cfg.shuttleMeters * 3.6 / speedFor(palier, cfg); }
+  function buildPlan(raw) {
+    const cfg = normalize(raw);
+    const events = [];
+    const segments = [];
+    let clock = 0;
+    let cumulativeDistance = 0;
+    const pushSeg = (kind, durationMs, palier, order) => {
+      const speed = kind === 'run' ? speedFor(palier, cfg) : 0;
+      const segment = {
+        kind, start: round(clock), end: round(clock + durationMs),
+        durationMs, palier, order, speed,
+        distStart: cumulativeDistance,
+        distEnd: cumulativeDistance + (durationMs / 1000) * speed / 3.6,
+      };
+      segments.push(segment);
+      cumulativeDistance = segment.distEnd;
+      clock += durationMs;
+      return segment;
+    };
+    if (cfg.mode === 'interval') {
+      for (let i = 0; i < cfg.groups; i++) {
+        const palier = cfg.startPalier + (cfg.progressive ? i : 0);
+        const run = pushSeg('run', cfg.runSec * 1000, palier, i + 1);
+        events.push({ t: run.start, type: 'run', palier, order: i + 1 });
+        const gapMs = shuttleSec(palier, cfg) * 1000;
+        for (let n = 1; run.start + n * gapMs < run.end - 0.001; n++) {
+          events.push({ t: round(run.start + n * gapMs), type: 'shuttle', palier, order: i + 1, number: n });
+        }
+        // Distance is not continuous across rest periods / different reps.
+        if (i < cfg.groups - 1 && cfg.restSec > 0) {
+          const rest = pushSeg('rest', cfg.restSec * 1000, palier, i + 1);
+          events.push({ t: rest.start, type: 'rest', palier, order: i + 1 });
+        }
+      }
+    } else {
+      const count = Math.max(1, cfg.endPalier - cfg.startPalier + 1);
+      for (let i = 0; i < count; i++) {
+        const palier = cfg.startPalier + i;
+        const seg = pushSeg('run', cfg.stageSec * 1000, palier, i + 1);
+        events.push({ t: seg.start, type: 'stage', palier, order: i + 1 });
+        // Carry the uncompleted 20 m shuttle across palier boundaries.
+        const speedMs = seg.speed / 3.6;
+        const firstCrossing = Math.floor((seg.distStart + 1e-9) / cfg.shuttleMeters) + 1;
+        for (let n = firstCrossing; n * cfg.shuttleMeters < seg.distEnd - 1e-9; n++) {
+          const deltaSec = (n * cfg.shuttleMeters - seg.distStart) / speedMs;
+          events.push({ t: round(seg.start + deltaSec * 1000), type: 'shuttle', palier, order: i + 1, number: n });
+        }
+      }
+    }
+    events.push({ t: round(clock), type: 'finish' });
+    const priority = { stage: 0, run: 0, rest: 0, shuttle: 1, finish: 2 };
+    events.sort((a, b) => a.t - b.t || priority[a.type] - priority[b.type]);
+    return { cfg, segments, events, totalMs: round(clock), totalDistanceM: cumulativeDistance };
+  }
+  function segmentAt(plan, timeMs) {
+    const t = Math.max(0, Math.min(plan.totalMs - 0.0001, timeMs));
+    return plan.segments.find(seg => t >= seg.start && t < seg.end) || plan.segments[plan.segments.length - 1];
+  }
+  function distanceAt(plan, timeMs) {
+    const t = Math.max(0, Math.min(plan.totalMs, timeMs));
+    if (t >= plan.totalMs) return plan.totalDistanceM;
+    const seg = segmentAt(plan, t);
+    return seg.distStart + (t - seg.start) / 1000 * (seg.speed / 3.6);
+  }
+  function shuttlesAt(plan, timeMs) {
+    const t = Math.max(0, Math.min(plan.totalMs, timeMs));
+    return plan.events.filter(e => e.type === 'shuttle' && e.t <= t + 0.0001).length;
+  }
+  function progressAt(plan, elapsedMs) {
+    const t = Math.max(0, Math.min(plan.totalMs, elapsedMs));
+    const seg = segmentAt(plan, t);
+    const elapsedInSeg = Math.max(0, Math.min(seg.durationMs, t - seg.start));
+    const nextShuttle = plan.events.find(e => e.type === 'shuttle' && e.t > t + 0.001 && (plan.cfg.mode === 'test' || e.t < seg.end - 0.001));
+    const complete = t >= plan.totalMs;
+    return {
+      complete, elapsedMs: t, totalMs: plan.totalMs,
+      segment: seg,
+      remainingMs: complete ? 0 : seg.end - t,
+      progress: complete ? 1 : elapsedInSeg / seg.durationMs,
+      nextBeepMs: nextShuttle ? nextShuttle.t - t : null,
+      speed: seg.speed,
+      shuttles: shuttlesAt(plan, t),
+      distanceM: distanceAt(plan, t),
+      completedGroups: plan.segments.filter(s => s.kind === 'run' && s.end <= t).length,
+    };
+  }
+  return { DEFAULTS, normalize, buildPlan, speedFor, shuttleSec, segmentAt, distanceAt, shuttlesAt, progressAt };
+});
+
+</script>
+<script>
+/* Luc Léger 20m — Android-first browser UI. All data stays in localStorage. */
+(() => {
+  'use strict';
+  const Core = window.LucCore;
+  if (!Core) { document.body.textContent = '加载失败：缺少 core.js'; return; }
+  const SETTINGS_KEY = 'luc-leger-settings-v1';
+  const HISTORY_KEY = 'luc-leger-records-v1';
+  const $ = id => document.getElementById(id);
+  const ui = new Proxy({}, { get: (_obj, key) => $(key) });
+  const stored = (key, backup) => { try { return JSON.parse(localStorage.getItem(key)) ?? backup; } catch { return backup; } };
+  const persist = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { toast('无法写入本机存储，请检查浏览器权限'); return false; } };
+  const state = {
+    config: Core.normalize(stored(SETTINGS_KEY, {})), plan: null,
+    records: Array.isArray(stored(HISTORY_KEY, [])) ? stored(HISTORY_KEY, []) : [],
+    session: null, pending: null,
+    audio: null, nodes: new Set(), audioIndex: 0, hapticIndex: 0,
+    loop: null, wakeLock: null, autoPaused: false, toastTimeout: null,
+  };
+  state.plan = Core.buildPlan(state.config);
+
+  function toast(message) {
+    const el = $('toast'); if (!el) return;
+    el.textContent = message; el.classList.add('show');
+    clearTimeout(state.toastTimeout);
+    state.toastTimeout = setTimeout(() => el.classList.remove('show'), 3400);
+  }
+  const formatTime = sec => { const s = Math.max(0, Math.ceil(sec - 0.00001)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+  const prettySeconds = sec => Number(sec).toFixed(2);
+  const cfg = () => state.config;
+  const active = () => Boolean(state.session);
+  const elapsed = () => {
+    if (!state.session) return 0;
+    const s = state.session;
+    return Math.min(state.plan.totalMs, s.baseMs + (s.paused ? 0 : performance.now() - s.anchor));
+  };
+
+  function showScreen(screen) {
+    for (const section of document.querySelectorAll('.screen')) {
+      const yes = section.id === `screen-${screen}`;
+      section.classList.toggle('active', yes); section.hidden = !yes;
+    }
+    for (const nav of document.querySelectorAll('[data-screen]')) {
+      const yes = nav.dataset.screen === screen;
+      nav.classList.toggle('selected', yes);
+      if (yes) nav.setAttribute('aria-current', 'page'); else nav.removeAttribute('aria-current');
+    }
+    if (screen === 'history') renderHistory();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  function updateModeFields() {
+    const test = cfg().mode === 'test';
+    ui['interval-fields'].classList.toggle('hidden', test);
+    ui['test-fields'].classList.toggle('hidden', !test);
+    ui['mode'].value = cfg().mode;
+  }
+  function updateAllInputs() {
+    const c = cfg();
+    for (const id of ['groups', 'runSec', 'restSec', 'endPalier', 'stageSec', 'speedStep', 'shuttleMeters']) $(id).value = c[id];
+    ui.startPalierInterval.value = c.startPalier;
+    ui.startPalierTest.value = c.startPalier;
+    ui.baseSpeed.value = String(c.baseSpeed);
+    for (const id of ['progressive', 'sound', 'vibrate', 'bright']) $(id).checked = c[id];
+    ui.volume.value = Math.round(c.volume * 100);
+    ui['volume-label'].textContent = `${Math.round(c.volume * 100)}%`;
+    document.body.classList.toggle('bright', c.bright);
+    updateModeFields();
+    updateFormula();
+    lockInputs();
+  }
+  function lockInputs() {
+    const locked = active();
+    for (const control of document.querySelectorAll('#screen-settings input,#screen-settings select,#screen-settings .preset-button')) control.disabled = locked;
+    ui['editing-lock'].classList.toggle('hidden', !locked);
+    ui['test-beep'].disabled = false;
+    ui['save-and-train'].textContent = locked ? '返回训练' : '✓ 保存设置并返回训练';
+  }
+  function updateFormula() {
+    const c = cfg();
+    ui['formula-card'].textContent = `Palier ${c.startPalier} = ${Core.speedFor(c.startPalier, c).toFixed(1)} km/h · 每 ${c.shuttleMeters}m 约 ${prettySeconds(Core.shuttleSec(c.startPalier, c))} 秒`;
+  }
+  function getInputSettings() {
+    const prior = cfg();
+    const mode = ui.mode.value;
+    const sourcePalier = mode === 'test' ? ui.startPalierTest : ui.startPalierInterval;
+    const output = {
+      ...prior, mode,
+      groups: ui.groups.value, runSec: ui.runSec.value, restSec: ui.restSec.value,
+      startPalier: sourcePalier.value, endPalier: ui.endPalier.value,
+      stageSec: ui.stageSec.value, speedStep: ui.speedStep.value,
+      shuttleMeters: ui.shuttleMeters.value, baseSpeed: ui.baseSpeed.value,
+      progressive: ui.progressive.checked, sound: ui.sound.checked,
+      vibrate: ui.vibrate.checked, bright: ui.bright.checked,
+      volume: Number(ui.volume.value) / 100,
+    };
+    const result = Core.normalize(output);
+    result.endPalier = Math.max(result.endPalier, result.startPalier);
+    return result;
+  }
+  function setSettings(next) {
+    if (active()) { toast('请先结束当前训练'); return; }
+    state.config = Core.normalize(next);
+    state.config.endPalier = Math.max(state.config.endPalier, state.config.startPalier);
+    state.plan = Core.buildPlan(state.config);
+    persist(SETTINGS_KEY, state.config);
+    updateAllInputs();
+    renderTrain();
+  }
+  function applyPreset(name) {
+    if (name === 'easy') setSettings({ ...cfg(), mode: 'interval', groups: 4, runSec: 60, restSec: 90, startPalier: 1, progressive: false });
+    if (name === 'two') setSettings({ ...cfg(), mode: 'interval', groups: 2, runSec: 120, restSec: 90, startPalier: 1, progressive: false });
+    if (name === 'test') setSettings({ ...cfg(), mode: 'test', startPalier: 1, endPalier: 10, stageSec: 60 });
+    document.querySelectorAll('.preset-button').forEach(b => b.classList.toggle('chosen', b.dataset.preset === name));
+    toast('已加载训练方案');
+  }
+  function summary(plan) {
+    const c = plan.cfg;
+    const s = c.mode === 'interval'
+      ? `${c.groups} 组 × ${c.runSec} 秒 · 休息 ${c.restSec} 秒 · Palier ${c.startPalier}${c.progressive ? ' 逐组升级' : ''}`
+      : `Palier ${c.startPalier}–${c.endPalier} · 每级 ${c.stageSec} 秒 · 连续折返`;
+    return s;
+  }
+  function renderTrain() {
+    const plan = state.plan;
+    const c = cfg();
+    const running = active();
+    const ms = running ? elapsed() : 0;
+    const snap = Core.progressAt(plan, ms);
+    const seg = snap.segment;
+    const paused = running && state.session.paused;
+    const isRest = running && seg.kind === 'rest';
+    const modeTest = c.mode === 'test';
+    const duration = seg.durationMs;
+    $('train-heading').textContent = !running ? '开始训练' : isRest ? '休息时间' : '正在训练';
+    const pill = ui['state-pill'];
+    pill.className = `state-pill ${!running ? 'ready' : paused ? 'ready' : isRest ? 'rest' : 'run'}`;
+    pill.lastChild.textContent = !running ? '准备就绪' : paused ? '已暂停' : isRest ? '休息中' : '训练中';
+    $('unit-label').textContent = modeTest ? '当前级别' : '当前组数';
+    $('unit-value').innerHTML = modeTest ? `${seg.order} <small>/ ${plan.segments.length}</small>` : `${seg.order} <small>/ ${c.groups}</small>`;
+    $('palier-value').textContent = String(seg.palier).padStart(2, '0');
+    $('phase-label').textContent = !running ? 'READY · 准备' : paused ? 'PAUSED · 暂停' : isRest ? 'REST · 休息' : 'RUN · 跑步';
+    $('phase-hint').textContent = !running ? '准备好后点击开始' : paused ? '点击继续恢复训练' : isRest ? '下一组即将开始' : '当前阶段剩余时间';
+    $('time-remaining').textContent = formatTime((running ? snap.remainingMs : duration) / 1000);
+    const ring = ui['timer-ring'];
+    ring.style.setProperty('--progress', String((running ? snap.progress : 0) * 100));
+    ring.classList.toggle('rest', isRest);
+    const next = $('next-beep');
+    if (isRest) next.innerHTML = '休息 <small>中</small>';
+    else if (snap.nextBeepMs == null) next.innerHTML = '— <small>秒</small>';
+    else next.innerHTML = `${prettySeconds(snap.nextBeepMs / 1000)} <small>秒</small>`;
+    $('speed-label').innerHTML = `${Core.speedFor(seg.palier, c).toFixed(1)} <small>km/h</small>`;
+    $('segment-status').textContent = `${modeTest ? 'Palier' : '第'} ${seg.palier && modeTest ? seg.palier : seg.order} / ${modeTest ? c.endPalier : c.groups} ${isRest ? '· 休息' : ''}`;
+    $('total-time').textContent = `全程 ${formatTime(plan.totalMs / 1000)}`;
+    $('progress-fill').style.width = `${(ms / plan.totalMs * 100).toFixed(3)}%`;
+    $('shuttles-value').textContent = running ? snap.shuttles : 0;
+    $('distance-value').textContent = running ? Math.round(snap.distanceM) : 0;
+    $('plan-summary').textContent = summary(plan);
+    $('runner-note').textContent = running
+      ? paused ? '训练已经暂停。继续时从暂停位置恢复计时和 Beep。' : '到达 20 米终点线时应与 Beep 同步。请保持屏幕亮起、网页在前台。'
+      : '准备两条间距 20 米的线，按提示到达折返点。建议保持屏幕亮起、打开声音。';
+    $('start-button').classList.toggle('hidden', running);
+    $('active-controls').classList.toggle('hidden', !running);
+    $('pause-button').textContent = paused ? '▶ 继续' : 'Ⅱ 暂停';
+  }
+
+  async function ensureAudio() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return false;
+    try {
+      if (!state.audio) state.audio = new AudioContextClass();
+      if (state.audio.state === 'suspended') await state.audio.resume();
+      return state.audio.state === 'running';
+    } catch { return false; }
+  }
+  function tone(freq, duration, when, volumeMult = 1) {
+    if (!state.audio || state.audio.state !== 'running' || !cfg().sound) return;
+    const c = state.audio;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    const at = Math.max(c.currentTime + .006, when);
+    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, at);
+    const v = Math.min(0.32, cfg().volume * 0.28 * volumeMult);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), at + 0.014);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+    osc.connect(gain); gain.connect(c.destination);
+    state.nodes.add(osc);
+    osc.onended = () => { state.nodes.delete(osc); try { osc.disconnect(); gain.disconnect(); } catch { /* already disconnected */ } };
+    osc.start(at); osc.stop(at + duration + .01);
+  }
+  function playEvent(event, delaySeconds = 0) {
+    if (!state.audio || state.audio.state !== 'running' || !cfg().sound) return;
+    const at = state.audio.currentTime + Math.max(.006, delaySeconds);
+    switch (event.type) {
+      case 'shuttle': tone(1000, .125, at); break;
+      case 'run': tone(620, .09, at); tone(1000, .14, at + .12); break;
+      case 'stage': tone(770, .09, at); tone(1080, .12, at + .12); break;
+      case 'rest': tone(460, .22, at); break;
+      case 'finish': tone(610, .12, at); tone(820, .12, at + .15); tone(1090, .28, at + .31); break;
+    }
+  }
+  function cancelTones() {
+    for (const node of [...state.nodes]) {
+      try { node.onended = null; node.stop(); node.disconnect(); } catch { /* stop might have already happened */ }
+    }
+    state.nodes.clear();
+  }
+  function flashOnShuttle(e) {
+    if (e.type !== 'shuttle') return;
+    const card = ui['training-card'];
+    card.classList.remove('beep-flash');
+    void card.offsetWidth;
+    card.classList.add('beep-flash');
+    setTimeout(() => card.classList.remove('beep-flash'), 180);
+  }
+  function buzz(e) {
+    if (!cfg().vibrate) return;
+    const patterns = {
+      shuttle: [75], stage: [90, 70, 100], run: [90, 70, 100],
+      rest: [220], finish: [180, 80, 180]
+    };
+    const pattern = patterns[e.type];
+    if (!pattern) return;
+    if (window.LucNative && typeof window.LucNative.vibrate === 'function') {
+      window.LucNative.vibrate(pattern.join(','));
+    } else if (typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern.length === 1 ? pattern[0] : pattern);
+    }
+  }
+  async function requestWakeLock() {
+    if (document.hidden || !active() || state.session.paused) return;
+    if (window.LucNative && typeof window.LucNative.keepAwake === 'function') {
+      window.LucNative.keepAwake(true);
+      return;
+    }
+    if (!('wakeLock' in navigator)) return;
+    try {
+      state.wakeLock = await navigator.wakeLock.request('screen');
+    } catch { /* optional feature; Android battery restrictions can deny it */ }
+  }
+  async function releaseWakeLock() {
+    if (window.LucNative && typeof window.LucNative.keepAwake === 'function') {
+      window.LucNative.keepAwake(false);
+    }
+    const lock = state.wakeLock; state.wakeLock = null;
+    if (lock && !lock.released) try { await lock.release(); } catch { /* no-op */ }
+  }
+  function tick() {
+    if (!active() || state.session.paused) return;
+    const ms = elapsed();
+    const lookAhead = 130;
+    const evs = state.plan.events;
+    // Schedule beeps using the audio clock, not timer callback execution time.
+    while (state.audioIndex < evs.length && evs[state.audioIndex].t <= ms + lookAhead) {
+      const event = evs[state.audioIndex++];
+      if (event.t >= ms - 200 && event.type !== 'finish') playEvent(event, (event.t - ms) / 1000);
+    }
+    while (state.hapticIndex < evs.length && evs[state.hapticIndex].t <= ms) {
+      const event = evs[state.hapticIndex++];
+      if (event.t >= ms - 200 && event.type !== 'finish') {
+        buzz(event);
+        flashOnShuttle(event);
+      }
+    }
+    if (ms >= state.plan.totalMs) { finishSession(false); return; }
+    renderTrain();
+  }
+  async function start() {
+    if (active()) return;
+    const ok = await ensureAudio();
+    if (!ok && cfg().sound) toast('浏览器未能启用声音，请检查媒体音量');
+    state.audioIndex = 0; state.hapticIndex = 0;
+    state.session = { baseMs: 0, anchor: performance.now(), paused: false };
+    state.autoPaused = false;
+    lockInputs(); showScreen('train'); renderTrain();
+    clearInterval(state.loop);
+    state.loop = setInterval(tick, 35);
+    tick();
+    requestWakeLock();
+  }
+  function pause(auto = false) {
+    if (!active() || state.session.paused) return;
+    const ms = elapsed();
+    state.session.baseMs = ms; state.session.paused = true;
+    cancelTones();
+    if (window.LucNative && typeof window.LucNative.cancelVibration === 'function') window.LucNative.cancelVibration();
+    else if (navigator.vibrate) navigator.vibrate(0);
+    // Any sound already scheduled slightly ahead is cancelled and will be rescheduled later.
+    state.audioIndex = state.plan.events.findIndex(e => e.t > ms + 0.001);
+    state.hapticIndex = state.audioIndex;
+    if (state.audioIndex < 0) state.audioIndex = state.plan.events.length;
+    if (state.hapticIndex < 0) state.hapticIndex = state.plan.events.length;
+    state.autoPaused = auto;
+    releaseWakeLock(); renderTrain();
+  }
+  async function resume() {
+    if (!active() || !state.session.paused) return;
+    await ensureAudio();
+    state.session.anchor = performance.now();
+    state.session.paused = false;
+    state.autoPaused = false;
+    requestWakeLock(); tick();
+  }
+  function finishSession(stopped) {
+    if (!active()) return;
+    const ms = stopped ? elapsed() : state.plan.totalMs;
+    const snap = Core.progressAt(state.plan, ms);
+    if (!stopped) buzz({ type: 'finish' });
+    clearInterval(state.loop); state.loop = null;
+    cancelTones(); // end sound handled separately below, to avoid stale future beeps
+    if (!stopped && cfg().sound) playEvent({ type: 'finish' });
+    state.pending = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      date: new Date().toISOString(),
+      mode: cfg().mode, plan: summary(state.plan),
+      plannedGroups: cfg().mode === 'interval' ? cfg().groups : state.plan.segments.length,
+      completedGroups: snap.completedGroups,
+      lastPalier: snap.segment.palier,
+      durationSec: Math.round(ms / 1000),
+      runningSec: Math.round(state.plan.segments.reduce((sum, s) => sum + (s.kind === 'run' ? Math.max(0, Math.min(ms, s.end) - s.start) : 0), 0) / 1000),
+      shuttles: snap.shuttles, distanceM: Math.round(snap.distanceM),
+      completed: !stopped,
+    };
+    state.session = null;
+    releaseWakeLock(); lockInputs(); renderTrain();
+    ui['finish-title'].textContent = stopped ? '本次训练已结束' : '训练完成！';
+    ui['finish-description'].textContent = stopped ? '你提前结束了训练。也可以保存目前的训练成果。' : '做得好！记录一下训练后的整体疲劳程度。';
+    ui['finish-result'].textContent = `${snap.completedGroups} ${cfg().mode === 'test' ? '级完成' : '组完成'} · ${snap.shuttles} 次 20m · ${Math.round(snap.distanceM)} m`;
+    ui.rating.value = 5; ui['rating-value'].textContent = '5 / 10';
+    ui['session-note'].value = '';
+    if (typeof ui['finish-dialog'].showModal === 'function') ui['finish-dialog'].showModal();
+  }
+  function saveSession() {
+    if (!state.pending) return;
+    const record = { ...state.pending, rpe: Number(ui.rating.value), note: ui['session-note'].value.trim() };
+    state.records.unshift(record);
+    state.records = state.records.slice(0, 200);
+    const saved = persist(HISTORY_KEY, state.records);
+    state.pending = null;
+    renderHistory(); showScreen('history');
+    toast(saved ? '训练记录已保存到本机' : '当前浏览器禁止保存本地记录；请导出 CSV 备份');
+  }
+  function makeEl(tag, text, className) {
+    const el = document.createElement(tag);
+    if (text !== undefined) el.textContent = text;
+    if (className) el.className = className;
+    return el;
+  }
+  function renderHistory() {
+    const records = state.records;
+    ui['history-count'].textContent = records.length;
+    const totalSecs = records.reduce((sum, r) => sum + (Number(r.runningSec) || 0), 0);
+    ui['history-minutes'].innerHTML = `${Math.round(totalSecs / 60)} <small>分</small>`;
+    ui['history-shuttles'].textContent = records.reduce((sum, r) => sum + (Number(r.shuttles) || 0), 0);
+    ui['history-list'].replaceChildren();
+    if (!records.length) {
+      ui['history-list'].append(makeEl('div', '还没有训练记录。完成一次训练后会自动保存在这台手机上。', 'empty-state'));
+      return;
+    }
+    for (const record of records) {
+      const card = makeEl('article', undefined, 'history-record');
+      const top = makeEl('div', undefined, 'history-record-top');
+      const info = makeEl('div');
+      const title = makeEl('strong', record.mode === 'test' ? 'Luc Léger 模拟' : '间歇训练');
+      const date = makeEl('div', new Date(record.date).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }), 'history-date');
+      info.append(title, date);
+      const deleteButton = makeEl('button', '删除', 'delete-record');
+      deleteButton.type = 'button'; deleteButton.setAttribute('aria-label', '删除这条训练记录');
+      deleteButton.addEventListener('click', () => {
+        if (!confirm('确定删除这条训练记录吗？')) return;
+        state.records = state.records.filter(r => r.id !== record.id);
+        persist(HISTORY_KEY, state.records); renderHistory();
+      });
+      top.append(info, deleteButton);
+      const details = makeEl('div', undefined, 'history-record-details');
+      const bits = [
+        `${record.completed ? '✓ 已完成' : '• 提前结束'}`,
+        `${record.completedGroups} 组/级`,
+        `最高 Palier ${record.lastPalier}`,
+        `${record.shuttles} 次折返`,
+        `${Math.round((record.runningSec || 0) / 60)} 分钟跑步`,
+        `疲劳 ${record.rpe}/10`,
+      ];
+      bits.forEach(b => details.append(makeEl('span', b)));
+      card.append(top, details);
+      if (record.note) card.append(makeEl('p', record.note, 'history-record-note'));
+      ui['history-list'].append(card);
+    }
+  }
+  function csvCell(item) { return `"${String(item == null ? '' : item).replace(/"/g, '""')}"`; }
+  function exportCSV() {
+    if (!state.records.length) { toast('还没有记录可以导出'); return; }
+    const keys = ['date', 'mode', 'completed', 'completedGroups', 'plannedGroups', 'lastPalier', 'durationSec', 'runningSec', 'shuttles', 'distanceM', 'rpe', 'note', 'plan'];
+    const lines = [keys.map(csvCell).join(','), ...state.records.map(record => keys.map(key => csvCell(record[key])).join(','))];
+    const csvText = '\ufeff' + lines.join('\r\n');
+    if (window.LucNative && typeof window.LucNative.shareCsv === 'function') {
+      window.LucNative.shareCsv(`luc-leger-${new Date().toISOString().slice(0, 10)}.csv`, csvText);
+      return;
+    }
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = url; link.download = `luc-leger-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function initialize() {
+  for (const nav of document.querySelectorAll('[data-screen]')) nav.addEventListener('click', () => showScreen(nav.dataset.screen));
+  ui['settings-shortcut'].addEventListener('click', () => showScreen('settings'));
+  ui['edit-plan'].addEventListener('click', () => showScreen('settings'));
+  ui['save-and-train'].addEventListener('click', () => { if (!active()) setSettings(getInputSettings()); showScreen('train'); });
+  ui['start-button'].addEventListener('click', start);
+  ui['pause-button'].addEventListener('click', () => active() && (state.session.paused ? resume() : pause()));
+  ui['stop-button'].addEventListener('click', () => { if (active() && confirm('结束本次训练并记录当前进度？')) finishSession(true); });
+  ui['export-csv'].addEventListener('click', exportCSV);
+  document.querySelectorAll('.preset-button').forEach(btn => btn.addEventListener('click', () => applyPreset(btn.dataset.preset)));
+  const inputs = document.querySelectorAll('#screen-settings input, #screen-settings select');
+  for (const input of inputs) {
+    input.addEventListener('change', () => {
+      if (active()) return;
+      if (input.id === 'mode') { // Both start-Palier controls share a single value.
+        const palier = cfg().startPalier;
+        ui.startPalierInterval.value = palier; ui.startPalierTest.value = palier;
+      }
+      setSettings(getInputSettings());
+      document.querySelectorAll('.preset-button').forEach(p => p.classList.remove('chosen'));
+    });
+  }
+  ui.volume.addEventListener('input', () => { ui['volume-label'].textContent = `${ui.volume.value}%`; });
+  ui['test-beep'].addEventListener('click', async () => {
+    if (!await ensureAudio()) { toast('无法播放：检查浏览器的声音权限和媒体音量'); return; }
+    playEvent({ type: 'shuttle' }); buzz({ type: 'shuttle' });
+    toast('已发出测试提示（如启用声音和振动）');
+  });
+  ui.rating.addEventListener('input', () => { ui['rating-value'].textContent = `${ui.rating.value} / 10`; });
+  ui['finish-dialog'].addEventListener('cancel', e => e.preventDefault());
+  ui['finish-form'].addEventListener('submit', () => saveSession());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && active() && !state.session.paused) pause(true);
+    if (!document.hidden && state.autoPaused) { renderTrain(); toast('已自动暂停：页面切到后台时不能保证 Beep，请点击继续'); }
+  });
+  window.addEventListener('pagehide', () => { if (active() && !state.session.paused) pause(true); });
+  window.addEventListener('luc-native-background', () => {
+    if (active() && !state.session.paused) pause(true);
+  });
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+  updateAllInputs(); renderTrain(); renderHistory();
+  document.documentElement.dataset.lucTrainerReady = 'true';
+  }
+  // External scripts can use defer, but inlined scripts in an HTML attachment
+  // do NOT honor defer. Always wait until every interactive element exists.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  } else {
+    initialize();
+  }
+})();
+
+</script>
+</body>
+</html>

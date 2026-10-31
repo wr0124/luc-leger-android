@@ -1,0 +1,22 @@
+Luc Léger Android 1.3 — 正规构建工程（非 APK）
+
+注意：之前的 Luc-Leger-Android-BETA.apk 和 v1.2 已出现闪退，停止使用。不要把此 ZIP 直接安装到 Android 手机上。
+
+方法一（推荐：用 Mac 上的 Android Studio）
+1. 在 Mac 上安装 Android Studio：https://developer.android.com/studio
+2. 解压这个 ZIP，打开 Android Studio，选择 Open，然后选择解压后的整个文件夹。
+3. 首次会下载 Android SDK/Gradle，电脑需要联网。请等待 Gradle Sync 完成。
+4. 菜单 Build → Build Bundle(s) / APK(s) → Build APK(s)。
+5. 生成的文件：app/build/outputs/apk/debug/app-debug.apk
+6. 先在手机卸载之前那个闪退的 Luc Léger，再把新 APK 传到手机安装。
+   旧 APK 用了不同的签名，不能直接覆盖安装。Chrome 里正常工作的 HTML 不受卸载影响。
+
+方法二（GitHub Actions，电脑不用安装 Android Studio）
+1. 在 GitHub 新建私有仓库 luc-leger-android。
+2. 用 git 把本项目完整上传到仓库的 main 分支（保留 .github/workflows/build-apk.yml）。
+3. 进入仓库 Actions → Build Real Android APK → Run workflow。
+4. 工作流成功后，在运行详情最下方 Artifacts 下载 LucLeger-Android-v1.3-APK。
+5. 解压，里面的 app-debug.apk 才是 Android 可安装文件。
+6. 与上述相同，安装前卸载旧版，以免签名不匹配。
+
+本项目仅是源码，尚未在当前环境通过 Android SDK 编译及真机运行验证；实际 APK 要由以上两种方式生成。

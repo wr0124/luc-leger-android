@@ -1,0 +1,143 @@
+package com.lucleger.trainer;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.net.Uri;
+
+/**
+ * Standalone, offline Android shell around the tested v1.1 single-file trainer.
+ * No server or internet permission: the sole page is bundled inside assets.
+ */
+public final class MainActivity extends Activity {
+    private static final String LOCAL_URL = "file:///android_asset/index.html";
+    private WebView webView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getWindow().setStatusBarColor(Color.rgb(13, 22, 31));
+        getWindow().setNavigationBarColor(Color.rgb(13, 22, 31));
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.rgb(13, 22, 31));
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true); // localStorage: training records & settings
+        settings.setAllowFileAccess(true);  // only trusted file:///android_asset content
+        settings.setAllowContentAccess(false);
+        settings.setMediaPlaybackRequiresUserGesture(false); // Web Audio beeps
+        settings.setDefaultTextEncodingName("UTF-8");
+        webView.setWebChromeClient(new WebChromeClient()); // JS confirm() dialog and audio
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return openExternal(request.getUrl().toString());
+            }
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return openExternal(url);
+            }
+        });
+        // Expose ONLY narrowly scoped functions to the trusted, bundled page.
+        webView.addJavascriptInterface(new NativeBridge(), "LucNative");
+        setContentView(webView);
+        webView.loadUrl(LOCAL_URL);
+    }
+
+    private boolean openExternal(String url) {
+        // Prevent untrusted pages from ever loading within the privileged WebView.
+        if (LOCAL_URL.equals(url) || url.startsWith("about:blank")) return false;
+        if (url.startsWith("https://") || url.startsWith("http://")) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+            catch (Exception ignored) { }
+        }
+        return true;
+    }
+
+    @Override
+    protected void onPause() {
+        if (webView != null) {
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new Event('luc-native-background'));", null);
+            webView.onPause();
+        }
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (webView != null) { webView.destroy(); webView = null; }
+        super.onDestroy();
+    }
+
+    private final class NativeBridge {
+        @JavascriptInterface
+        public void keepAwake(boolean enabled) {
+            runOnUiThread(() -> {
+                if (enabled) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
+        }
+
+        @JavascriptInterface
+        public void vibrate(String patternCsv) {
+            try {
+                String[] parts = patternCsv.split(",");
+                if (parts.length < 1 || parts.length > 20) return;
+                long[] pattern = new long[parts.length + 1];
+                pattern[0] = 0;  // start immediately, then alternate on/off
+                for (int i = 0; i < parts.length; i++) {
+                    long v = Long.parseLong(parts[i].trim());
+                    pattern[i + 1] = Math.min(1000, Math.max(0, v));
+                }
+                Vibrator vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (vib == null || !vib.hasVibrator()) return;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vib.vibrate(VibrationEffect.createWaveform(pattern, -1));
+                } else {
+                    vib.vibrate(pattern, -1);
+                }
+            } catch (Exception ignored) { }
+        }
+
+        @JavascriptInterface
+        public void cancelVibration() {
+            Vibrator vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (vib != null) vib.cancel();
+        }
+
+        @JavascriptInterface
+        public void shareCsv(String fileName, String csv) {
+            if (csv == null || csv.length() > 2_000_000) return;
+            runOnUiThread(() -> {
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("text/csv");
+                share.putExtra(Intent.EXTRA_SUBJECT, fileName);
+                share.putExtra(Intent.EXTRA_TEXT, csv);
+                startActivity(Intent.createChooser(share, "导出 Luc Léger 训练记录"));
+            });
+        }
+    }
+}
