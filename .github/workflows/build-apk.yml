@@ -27,6 +27,7 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Compile with the Android Gradle Plugin
+        working-directory: LucLeger-Android-v1.3
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - name: Check APK contents
         shell: bash
