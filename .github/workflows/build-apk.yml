@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -eu
-          APK="app/build/outputs/apk/debug/app-debug.apk"
+          APK="LucLeger-Android-v1.3/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
           unzip -l "$APK" | grep -q 'classes.dex'
           unzip -l "$APK" | grep -q 'assets/index.html'
