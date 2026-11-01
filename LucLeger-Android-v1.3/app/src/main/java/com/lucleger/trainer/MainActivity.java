@@ -2,6 +2,7 @@ package com.lucleger.trainer;
 
 import android.app.Activity;
 import android.content.Context;
+import android.media.AudioManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
@@ -18,7 +19,7 @@ import android.webkit.WebViewClient;
 import android.net.Uri;
 
 /**
- * Standalone, offline Android shell around the tested v1.1 single-file trainer.
+ * Standalone, offline Android shell around the updated v1.4 offline trainer.
  * No server or internet permission: the sole page is bundled inside assets.
  */
 public final class MainActivity extends Activity {
@@ -28,6 +29,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Hardware volume keys adjust media volume while the trainer is open.
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
         getWindow().setStatusBarColor(Color.rgb(13, 22, 31));
         getWindow().setNavigationBarColor(Color.rgb(13, 22, 31));
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
@@ -136,7 +139,7 @@ public final class MainActivity extends Activity {
                 share.setType("text/csv");
                 share.putExtra(Intent.EXTRA_SUBJECT, fileName);
                 share.putExtra(Intent.EXTRA_TEXT, csv);
-                startActivity(Intent.createChooser(share, "导出 Luc Léger 训练记录"));
+                startActivity(Intent.createChooser(share, "Share Luc Léger training history"));
             });
         }
     }

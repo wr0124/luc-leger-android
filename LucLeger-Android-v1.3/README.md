@@ -1,27 +1,34 @@
-# Luc Léger Android — v1.3 build-ready source
+# Luc Léger Trainer v1.4 — Android Source
 
-**Status: Android source, not a compiled APK.** The previous handmade BETA/v1.2 APKs crash on Android and must not be reused.
+This project uses Android WebView with an offline HTML interface and a small native Android bridge. It is designed for personal 20 m shuttle-run training; it is not an official exam recording.
 
-This is a dependency-free Java Android Activity using the standard Gradle Android build pipeline, embedding the known-working v1.1 HTML trainer in `app/src/main/assets/index.html` and adding a narrow JavaScript bridge for native vibration, keep-screen-on, and sharing CSV.
+## Changes in v1.4
 
-## Build with Android Studio (Mac / Windows)
+- Louder, brighter 20 m beep cues and media-volume handling for Android hardware volume keys.
+- Initial **10-second GET READY** before the first run, with spoken **Five, Four, Three, Two, One, Go** during the last five seconds.
+- During intervals, **the last ten seconds of each rest become GET READY** for the next run. For rest under 10 seconds, a full ten-second ready period is still inserted; the total workout time is correspondingly longer. For continuous Palier test simulation, only the initial ready period is inserted.
+- Distinct low, descending rest cue with the spoken word **Rest**.
+- Original generated applause clip when all training finishes (not after manual Stop).
+- Fully English interface, records, dialogs, settings and audio previews. Preserved local history/settings keys from v1.3.
 
-Install Android Studio from https://developer.android.com/studio, open this directory as a project, wait for Gradle Sync, then choose **Build > Build Bundle(s) / APK(s) > Build APK(s)**. The output is `app/build/outputs/apk/debug/app-debug.apk`.
+## Build/update existing GitHub repository
 
-## Build with GitHub Actions
+The current repository uses the directory name `LucLeger-Android-v1.3` in its GitHub Actions workflow. **Do not rename it when applying this update**. Replace the matching files in that directory with the new v1.4 contents. Keep `.github/workflows/build-apk.yml` unchanged.
 
-Publish the complete project (including `.github/workflows/build-apk.yml`) to a repository's default `main` branch. Under **Actions > Build Real Android APK > Run workflow**, download the **LucLeger-Android-v1.3-APK** artifact and extract `app-debug.apk`.
+Modified files:
 
-## Important install caveat
+- `app/src/main/assets/index.html`
+- `app/src/main/java/com/lucleger/trainer/MainActivity.java`
+- `app/build.gradle`
 
-Uninstall the old crashing APK before installing this GitHub Actions / Android Studio debug APK. The old hand-built APK uses an incompatible signing certificate. Uninstalling the crashed APK will not remove saved data from the separate HTML version in Chrome.
+Build workflow: `Build Real Android APK` runs on pushes to `main`, and its successful result offers a downloadable `app-debug.apk` artifact.
 
-## Tech
+**Note:** The Android APK still requires actual compilation by GitHub Actions and on-device testing. It is **not** a Play Store release bundle.
 
-- Offline single-page Android WebView, Android minSdk 26, compileSdk 35 / targetSdk 34
-- Java 17, Android Gradle Plugin 8.6.1, Gradle 8.7
-- No INTERNET permission; no remote services
-- Local DOM storage, vibration permission, keep-screen-on, share history as text/csv
-- Automatically pauses on app backgrounding to avoid missed 20m beeps
+## Audio
 
-**Build status:** This environment lacks the Android SDK, so source is reviewed and web behavior is testable but the native APK is **not yet compiled or validated on Android hardware**. Only Android Studio or Actions artifacts produced from this project can be called installable APKs.
+Embedded audio clips were generated offline for this project: English countdown speech via eSpeak, applause via randomized transient synthesis. No network access or additional media downloads are needed. Maximum volume is limited by Android media-volume settings and the phone's speaker.
+
+## Existing data
+
+The Android package ID remains `com.lucleger.trainer`, and the local storage keys remain unchanged, so in-place upgrades from properly signed GitHub Actions debug builds can retain training history. APK debug signing certificates may differ between build machines; if signing keys differ, Android requires uninstalling first, which deletes app data. Export your CSV before uninstalling or changing signing keys.
