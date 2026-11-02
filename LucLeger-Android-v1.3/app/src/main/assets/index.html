@@ -12,6 +12,7 @@
   
   
   <style>
+.block-list{display:grid;gap:12px}.block-card{border:1px solid var(--line);border-radius:16px;background:var(--soft);padding:14px}.block-card-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;justify-content:space-between}.block-card-head strong{font-size:15px}.block-actions{display:flex;gap:6px}.mini-btn{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:9px;min-width:36px;min-height:33px;padding:4px 9px;font-size:13px;font-weight:700}.mini-btn:disabled{opacity:.3}.mini-btn.remove{color:var(--danger)}.block-card .input-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.block-card .field{font-size:11px}.block-card input{font-size:16px}.add-block-button{border:1px dashed var(--accent);color:var(--accent);font-size:14px;min-height:50px}.next-phase{font-size:12px;font-weight:750;color:var(--muted);padding-top:12px;line-height:1.5}.plan-levels{display:flex;flex-wrap:wrap;gap:7px}.level-chip{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:12px;color:var(--text);font-weight:750}
 :root{
   color-scheme:dark;--bg:#0d161f;--surface:#14222e;--panel:#1b2a36;--soft:#233541;--line:#2d4150;
   --text:#f5f8f7;--muted:#94a8b2;--accent:#b8fc61;--accent-text:#14230d;
@@ -105,7 +106,7 @@ body.bright .timer-area{color:var(--text)}
 .training-card.beep-flash{border-color:var(--running);box-shadow:0 0 0 3px var(--running),0 0 32px #b8fc613a}
 
 </style>
-  <title>Luc Léger · 20m Trainer v1.4</title>
+  <title>Luc Léger · 20m Trainer v1.5</title>
   
   
 </head>
@@ -127,7 +128,7 @@ body.bright .timer-area{color:var(--text)}
         </div>
         <div class="training-card" id="training-card">
           <div class="top-metrics">
-            <div><span class="metric-label" id="unit-label">Current Set</span><span class="metric-value" id="unit-value">1 <small>/ 4</small></span></div>
+            <div><span class="metric-label" id="unit-label">Current Set</span><span class="metric-value" id="unit-value">1 <small>/ 6</small></span></div>
             <div class="metric-right"><span class="metric-label">Current PALIER</span><span class="metric-value" id="palier-value">01</span></div>
           </div>
           <div class="timer-area">
@@ -144,7 +145,8 @@ body.bright .timer-area{color:var(--text)}
             <div class="shuttle-caption"><span class="metric-label">Next 20 m beep</span><span class="shuttle-time" id="next-beep">8.47 <small>sec</small></span></div>
             <div class="shuttle-caption right"><span class="metric-label">Current Speed</span><span class="speed-number" id="speed-label">8.5 <small>km/h</small></span></div>
           </div>
-          <div class="bar-section"><div class="bar-label"><span id="segment-status">Set 1 / 4</span><span id="total-time">Total 08:40</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
+          <div class="bar-section"><div class="bar-label"><span id="segment-status">Set 1 / 6</span><span id="total-time">Total 08:40</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
+          <div class="next-phase" id="next-phase" aria-live="off">Next: Palier 1 · Set 1</div>
           <div class="distance-row"><span>Completed <b id="shuttles-value">0</b> shuttles</span><span>Estimated distance <b id="distance-value">0</b> m</span></div>
         </div>
         <div class="controls" id="controls">
@@ -155,7 +157,7 @@ body.bright .timer-area{color:var(--text)}
           </div>
         </div>
         <p class="field-note" id="runner-note">Mark two lines 20 metres apart. Reach each line when the beep sounds. Keep the screen on and your media volume high.</p>
-        <div class="session-preview"><span class="eyebrow">YOUR PLAN</span><div class="preview-text" id="plan-summary">4 sets × 1 min · rest 90 sec</div><button class="link-button" id="edit-plan">Edit Plan ↗</button></div>
+        <div class="session-preview"><span class="eyebrow">YOUR PLAN</span><div class="preview-text" id="plan-summary">Choose your Paliers and sets</div><div class="plan-levels" id="plan-levels"></div><button class="link-button" id="edit-plan">Edit Plan ↗</button></div>
       </section>
 
       <section class="screen" id="screen-settings" aria-labelledby="settings-heading" hidden>
@@ -165,21 +167,18 @@ body.bright .timer-area{color:var(--text)}
           <h2>Quick Presets</h2>
           <div class="preset-grid">
             <button type="button" class="preset-button" data-preset="easy"><strong>4 × 1′</strong><small>rest 90 sec</small></button>
-            <button type="button" class="preset-button" data-preset="two"><strong>2 × 2′</strong><small>rest 90 sec</small></button>
-            <button type="button" class="preset-button" data-preset="test"><strong>Test Simulation</strong><small>60 sec per level</small></button>
+            <button type="button" class="preset-button" data-preset="two"><strong>2 Paliers</strong><small>2 sets each</small></button>
+            <button type="button" class="preset-button" data-preset="test"><strong>Test Simulation</strong><small>No rest</small></button>
           </div>
           <label class="form-label" for="mode">Training Mode</label>
-          <select id="mode"><option value="interval">Interval Training</option><option value="test">Continuous Luc Léger Test</option></select>
+          <select id="mode"><option value="interval">Multi-Palier Intervals</option><option value="test">Luc Léger Simulation (No Rest)</option></select>
         </div>
         <div class="panel" id="interval-fields">
-          <h2>Interval Training</h2>
-          <div class="input-grid">
-            <label class="field">Number of sets <span>Sets</span><input id="groups" type="number" min="1" max="30" step="1" inputmode="numeric" value="4"></label>
-            <label class="field">Run per set (sec) <span>Running</span><input id="runSec" type="number" min="10" max="600" step="5" inputmode="numeric" value="60"></label>
-            <label class="field">Rest between sets (sec) <span>Last 10 sec = get ready</span><input id="restSec" type="number" min="0" max="600" step="5" inputmode="numeric" value="90"></label>
-            <label class="field">Starting Palier <span>Level</span><input id="startPalierInterval" type="number" min="1" max="30" step="1" inputmode="numeric" value="1"></label>
-          </div>
-          <label class="switch-line"><span><strong>Increase Palier each set</strong><small>When disabled, every set uses the same speed</small></span><input type="checkbox" id="progressive" role="switch"><span class="switch"></span></label>
+          <h2>Multi-Palier Training Plan</h2>
+          <p class="input-help" style="margin:0 0 14px">Add levels in the order you want to run. Each Palier has its own sets, run duration and recovery. The last 10 seconds of recovery are your next GET READY countdown.</p>
+          <div id="block-list" class="block-list" aria-label="Palier training blocks"></div>
+          <button type="button" class="test-beep-button add-block-button" id="add-block">+ Add another Palier</button>
+          <div id="block-total" class="formula-card" aria-live="polite"></div>
         </div>
         <div class="panel hidden" id="test-fields">
           <h2>Continuous Luc Léger Test</h2>
@@ -188,7 +187,7 @@ body.bright .timer-area{color:var(--text)}
             <label class="field">Final Palier<input id="endPalier" type="number" min="1" max="30" step="1" inputmode="numeric" value="10"></label>
             <label class="field">Time per level (sec)<input id="stageSec" type="number" min="30" max="180" step="10" inputmode="numeric" value="60"></label>
           </div>
-          <p class="input-help">In continuous mode Palier increases automatically. 20 m timing continues across levels and may differ slightly from specific official recordings.</p>
+          <p class="input-help">Simulation: 10-second countdown, then continuous running with no rest, increasing by one Palier per stage. Default protocol is 60 sec per level, starting at 8.5 km/h and increasing by 0.5 km/h. The calculated beeps may differ from official exam recordings.</p>
         </div>
         <div class="panel">
           <h2>Palier Speed Settings</h2>
@@ -257,7 +256,7 @@ body.bright .timer-area{color:var(--text)}
     mode: 'interval', groups: 4, runSec: 60, restSec: 90,
     startPalier: 1, progressive: false, endPalier: 10, stageSec: 60,
     baseSpeed: 8.5, speedStep: 0.5, shuttleMeters: 20,
-    sound: true, vibrate: true, volume: 1, bright: false,
+    blocks: null, sound: true, vibrate: true, volume: 1, bright: false,
   });
   function between(x, min, max, defaultValue) {
     const n = Number(x);
@@ -265,9 +264,39 @@ body.bright .timer-area{color:var(--text)}
   }
   function normalize(raw = {}) {
     const x = { ...DEFAULTS, ...raw };
+    // Existing v1.4 settings are migrated to one or more editable level blocks.
+    let candidates = Array.isArray(x.blocks) && x.blocks.length ? x.blocks : null;
+    if (!candidates && !Object.prototype.hasOwnProperty.call(raw, 'groups') &&
+        !Object.prototype.hasOwnProperty.call(raw, 'startPalier') &&
+        !Object.prototype.hasOwnProperty.call(raw, 'progressive')) {
+      candidates = [
+        { palier: 1, groups: 4, runSec: 60, restSec: 90 },
+        { palier: 2, groups: 2, runSec: 60, restSec: 90 },
+      ];
+    }
+    if (!candidates) {
+      const n = Math.round(between(x.groups, 1, 30, 4));
+      const first = Math.round(between(x.startPalier, 1, 30, 1));
+      if (x.progressive) {
+        candidates = Array.from({ length: n }, (_, i) => ({ palier: Math.min(30, first + i), groups: 1, runSec: x.runSec, restSec: x.restSec }));
+      } else {
+        candidates = [{ palier: first, groups: n, runSec: x.runSec, restSec: x.restSec }];
+      }
+    }
+    const blocks = candidates.slice(0, 20).map(b => ({
+      palier: Math.round(between(b.palier, 1, 30, 1)),
+      groups: Math.round(between(b.groups, 1, 30, 1)),
+      runSec: Math.round(between(b.runSec, 10, 600, 60)),
+      restSec: Math.round(between(b.restSec, 0, 600, 90)),
+    }));
+    // Cap the total number of sets to keep event timelines manageable.
+    let remaining = 120;
+    for (const b of blocks) { b.groups = Math.min(b.groups, remaining); remaining -= b.groups; }
+    const safeBlocks = blocks.filter(b => b.groups > 0);
     return {
       mode: x.mode === 'test' ? 'test' : 'interval',
-      groups: Math.round(between(x.groups, 1, 30, 4)),
+      blocks: safeBlocks,
+      groups: safeBlocks.reduce((sum, b) => sum + b.groups, 0),
       runSec: Math.round(between(x.runSec, 10, 600, 60)),
       restSec: Math.round(between(x.restSec, 0, 600, 90)),
       startPalier: Math.round(between(x.startPalier, 1, 30, 1)),
@@ -312,25 +341,30 @@ body.bright .timer-area{color:var(--text)}
       }
     };
     if (cfg.mode === 'interval') {
-      for (let i = 0; i < cfg.groups; i++) {
-        const palier = cfg.startPalier + (cfg.progressive ? i : 0);
+      const runs = cfg.blocks.flatMap((block, blockIndex) =>
+        Array.from({ length: block.groups }, (_, within) => ({ ...block, blockIndex, within })));
+      for (let i = 0; i < runs.length; i++) {
+        const item = runs[i];
+        const palier = item.palier;
         if (i === 0) addPreparation(palier, i + 1);
-        const run = pushSeg('run', cfg.runSec * 1000, palier, i + 1);
+        const run = pushSeg('run', item.runSec * 1000, palier, i + 1);
+        run.blockIndex = item.blockIndex; run.withinBlock = item.within + 1;
+        run.blockGroups = cfg.blocks[item.blockIndex].groups;
         events.push({ t: run.start, type: 'run', palier, order: i + 1 });
         const gapMs = shuttleSec(palier, cfg) * 1000;
         for (let n = 1; run.start + n * gapMs < run.end - 0.001; n++) {
           events.push({ t: round(run.start + n * gapMs), type: 'shuttle', palier, order: i + 1, number: n });
         }
-        if (i < cfg.groups - 1) {
-          // The final 10 seconds of each configured rest are for preparation.
-          // If restSec < 10, still reserve a full 10 seconds of preparation.
-          const restMs = Math.max(0, cfg.restSec * 1000 - PREP_MS);
+        if (i < runs.length - 1) {
+          // Rest duration belongs to the completed set's block.
+          // Its final 10 seconds become the next set's preparation.
+          const restMs = Math.max(0, item.restSec * 1000 - PREP_MS);
           if (restMs > 0) {
             const rest = pushSeg('rest', restMs, palier, i + 1);
+            rest.blockIndex = item.blockIndex;
             events.push({ t: rest.start, type: 'rest', palier, order: i + 1 });
           }
-          const nextPalier = cfg.startPalier + (cfg.progressive ? i + 1 : 0);
-          addPreparation(nextPalier, i + 2);
+          addPreparation(runs[i + 1].palier, i + 2);
         }
       }
     } else {
@@ -340,13 +374,15 @@ body.bright .timer-area{color:var(--text)}
         const palier = cfg.startPalier + i;
         const seg = pushSeg('run', cfg.stageSec * 1000, palier, i + 1);
         events.push({ t: seg.start, type: 'stage', palier, order: i + 1 });
-        // Carry the uncompleted 20 m shuttle across Palier boundaries.
-        const speedMs = seg.speed / 3.6;
-        const firstCrossing = Math.floor((seg.distStart + 1e-9) / cfg.shuttleMeters) + 1;
-        for (let n = firstCrossing; n * cfg.shuttleMeters < seg.distEnd - 1e-9; n++) {
-          const deltaSec = (n * cfg.shuttleMeters - seg.distStart) / speedMs;
-          events.push({ t: round(seg.start + deltaSec * 1000), type: 'shuttle', palier, order: i + 1, number: n });
-        }
+      }
+      // One continuous distance timeline: 20 m cues remain aligned even when
+      // the Palier changes halfway through a shuttle.
+      const runs = segments.filter(s => s.kind === 'run');
+      for (let n = 1; n * cfg.shuttleMeters <= cumulativeDistance + 1e-8; n++) {
+        const distance = n * cfg.shuttleMeters;
+        const seg = runs.find(s => s.distEnd >= distance - 1e-8) || runs[runs.length - 1];
+        const offsetMs = (distance - seg.distStart) / (seg.speed / 3.6) * 1000;
+        events.push({ t: round(Math.min(seg.end, seg.start + offsetMs)), type: 'shuttle', palier: seg.palier, order: seg.order, number: n });
       }
     }
     events.push({ t: round(clock), type: 'finish' });
@@ -452,6 +488,62 @@ body.bright .timer-area{color:var(--text)}
     if (screen === 'history') renderHistory();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  function readBlocks() {
+    return [...document.querySelectorAll('#block-list .block-card')].map(card => ({
+      palier: card.querySelector('[data-field="palier"]').value,
+      groups: card.querySelector('[data-field="groups"]').value,
+      runSec: card.querySelector('[data-field="runSec"]').value,
+      restSec: card.querySelector('[data-field="restSec"]').value,
+    }));
+  }
+  function renderBlocks() {
+    const blocks = cfg().blocks;
+    const list = ui['block-list'];
+    list.replaceChildren();
+    blocks.forEach((block, index) => {
+      const card = makeEl('div', undefined, 'block-card');
+      card.dataset.index = String(index);
+      const head = makeEl('div', undefined, 'block-card-head');
+      head.append(makeEl('strong', `Block ${index + 1}`));
+      const actions = makeEl('div', undefined, 'block-actions');
+      for (const [action, text, title, disabled] of [
+        ['up','↑','Move up',index === 0],['down','↓','Move down',index === blocks.length - 1],
+        ['remove','×','Remove Palier',blocks.length === 1],
+      ]) {
+        const btn = makeEl('button', text, 'mini-btn'+(action==='remove'?' remove':''));
+        btn.type = 'button'; btn.dataset.action = action; btn.title = title;
+        btn.setAttribute('aria-label', `${title} block ${index + 1}`);
+        btn.disabled = disabled || active(); actions.append(btn);
+      }
+      head.append(actions); card.append(head);
+      const fields = makeEl('div', undefined, 'input-grid');
+      for (const [field,label,value,min,max,step] of [
+        ['palier','Palier',block.palier,1,30,1],
+        ['groups','Sets',block.groups,1,30,1],
+        ['runSec','Run per set (sec)',block.runSec,10,600,5],
+        ['restSec','Rest after set (sec)',block.restSec,0,600,5],
+      ]) {
+        const wrapper = makeEl('label', label, 'field');
+        const input = makeEl('input');
+        input.type='number'; input.inputMode='numeric'; input.min=min; input.max=max; input.step=step;
+        input.value=String(value); input.dataset.field=field; input.disabled=active();
+        wrapper.append(input); fields.append(wrapper);
+      }
+      card.append(fields); list.append(card);
+    });
+    $('add-block').disabled = active() || blocks.length >= 20 || cfg().groups >= 120;
+    $('block-total').textContent = `${blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation`;
+  }
+  function commitBlockChange() {
+    if (active()) return;
+    // Do not recreate the inputs while a native change/blur event is firing.
+    state.config = Core.normalize({ ...cfg(), blocks: readBlocks() });
+    state.plan = Core.buildPlan(state.config);
+    persist(SETTINGS_KEY, state.config);
+    $('block-total').textContent = `${cfg().blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation`;
+    renderTrain();
+    document.querySelectorAll('.preset-button').forEach(p => p.classList.remove('chosen'));
+  }
   function updateModeFields() {
     const test = cfg().mode === 'test';
     ui['interval-fields'].classList.toggle('hidden', test);
@@ -460,11 +552,11 @@ body.bright .timer-area{color:var(--text)}
   }
   function updateAllInputs() {
     const c = cfg();
-    for (const id of ['groups', 'runSec', 'restSec', 'endPalier', 'stageSec', 'speedStep', 'shuttleMeters']) $(id).value = c[id];
-    ui.startPalierInterval.value = c.startPalier;
+    for (const id of ['endPalier', 'stageSec', 'speedStep', 'shuttleMeters']) $(id).value = c[id];
+    renderBlocks();
     ui.startPalierTest.value = c.startPalier;
     ui.baseSpeed.value = String(c.baseSpeed);
-    for (const id of ['progressive', 'sound', 'vibrate', 'bright']) $(id).checked = c[id];
+    for (const id of ['sound', 'vibrate', 'bright']) $(id).checked = c[id];
     ui.volume.value = Math.round(c.volume * 100);
     ui['volume-label'].textContent = `${Math.round(c.volume * 100)}%`;
     document.body.classList.toggle('bright', c.bright);
@@ -477,6 +569,7 @@ body.bright .timer-area{color:var(--text)}
     for (const control of document.querySelectorAll('#screen-settings input,#screen-settings select,#screen-settings .preset-button')) control.disabled = locked;
     ui['editing-lock'].classList.toggle('hidden', !locked);
     ui['test-beep'].disabled = false;
+    ui['add-block'].disabled = locked || cfg().blocks.length >= 20 || cfg().groups >= 120;
     ui['save-and-train'].textContent = locked ? 'Back to Training' : '✓ Save & Return to Training';
   }
   function updateFormula() {
@@ -486,14 +579,14 @@ body.bright .timer-area{color:var(--text)}
   function getInputSettings() {
     const prior = cfg();
     const mode = ui.mode.value;
-    const sourcePalier = mode === 'test' ? ui.startPalierTest : ui.startPalierInterval;
+    const sourcePalier = ui.startPalierTest;
     const output = {
       ...prior, mode,
-      groups: ui.groups.value, runSec: ui.runSec.value, restSec: ui.restSec.value,
+      blocks: readBlocks(),
       startPalier: sourcePalier.value, endPalier: ui.endPalier.value,
       stageSec: ui.stageSec.value, speedStep: ui.speedStep.value,
       shuttleMeters: ui.shuttleMeters.value, baseSpeed: ui.baseSpeed.value,
-      progressive: ui.progressive.checked, sound: ui.sound.checked,
+      sound: ui.sound.checked,
       vibrate: ui.vibrate.checked, bright: ui.bright.checked,
       volume: Number(ui.volume.value) / 100,
     };
@@ -511,8 +604,8 @@ body.bright .timer-area{color:var(--text)}
     renderTrain();
   }
   function applyPreset(name) {
-    if (name === 'easy') setSettings({ ...cfg(), mode: 'interval', groups: 4, runSec: 60, restSec: 90, startPalier: 1, progressive: false });
-    if (name === 'two') setSettings({ ...cfg(), mode: 'interval', groups: 2, runSec: 120, restSec: 90, startPalier: 1, progressive: false });
+    if (name === 'easy') setSettings({ ...cfg(), mode: 'interval', blocks: [{ palier: 1, groups: 4, runSec: 60, restSec: 90 }] });
+    if (name === 'two') setSettings({ ...cfg(), mode: 'interval', blocks: [{ palier: 1, groups: 2, runSec: 120, restSec: 90 }, { palier: 2, groups: 2, runSec: 60, restSec: 90 }] });
     if (name === 'test') setSettings({ ...cfg(), mode: 'test', startPalier: 1, endPalier: 10, stageSec: 60 });
     document.querySelectorAll('.preset-button').forEach(b => b.classList.toggle('chosen', b.dataset.preset === name));
     toast('Preset loaded');
@@ -520,7 +613,7 @@ body.bright .timer-area{color:var(--text)}
   function summary(plan) {
     const c = plan.cfg;
     const s = c.mode === 'interval'
-      ? `${c.groups} sets × ${c.runSec} sec · ${c.restSec} sec between sets (last 10 sec prep) · Palier ${c.startPalier}${c.progressive ? ' · Progressive' : ''}`
+      ? `${c.blocks.length} Paliers · ${c.groups} sets · ${formatTime(plan.totalMs / 1000)} total (incl. prep/rest)`
       : `Palier ${c.startPalier}–${c.endPalier} · ${c.stageSec} sec/level · continuous shuttles`;
     return s;
   }
@@ -558,12 +651,24 @@ body.bright .timer-area{color:var(--text)}
     else if (snap.nextBeepMs == null) next.innerHTML = '— <small>sec</small>';
     else next.innerHTML = `${prettySeconds(snap.nextBeepMs / 1000)} <small>sec</small>`;
     $('speed-label').innerHTML = `${Core.speedFor(seg.palier, c).toFixed(1)} <small>km/h</small>`;
-    $('segment-status').textContent = modeTest ? `Palier ${seg.palier} / ${c.endPalier}${isPrep ? ' · PREPARE' : ''}` : `Set ${seg.order} / ${c.groups}${isPrep ? ' · PREPARE' : isRest ? ' · REST' : ''}`;
+    $('segment-status').textContent = modeTest ? `Palier ${seg.palier} / ${c.endPalier}${isPrep ? ' · PREPARE' : ''}` : `Palier ${seg.palier} · Set ${seg.order} / ${c.groups}${isPrep ? ' · PREPARE' : isRest ? ' · REST' : ''}`;
+    const nextRun = plan.segments.find(s => s.kind === 'run' && s.start > (running ? ms : -1));
+    const currentRun = seg.kind === 'run' ? seg : null;
+    $('next-phase').textContent = !running
+      ? modeTest ? `Simulation: Paliers ${c.startPalier}–${c.endPalier}, no rest` : `First: Palier ${c.blocks[0].palier} · ${c.blocks[0].groups} set(s)`
+      : modeTest ? (nextRun ? `Next: Palier ${nextRun.palier} · ${Core.speedFor(nextRun.palier,c).toFixed(1)} km/h` : 'Final Palier')
+      : nextRun ? `Next: Palier ${nextRun.palier} · Set ${nextRun.order} of ${c.groups}` : currentRun ? 'Final set — finish strong!' : 'Final stretch';
     $('total-time').textContent = `Total ${formatTime(plan.totalMs / 1000)}`;
     $('progress-fill').style.width = `${(ms / plan.totalMs * 100).toFixed(3)}%`;
     $('shuttles-value').textContent = running ? snap.shuttles : 0;
     $('distance-value').textContent = running ? Math.round(snap.distanceM) : 0;
     $('plan-summary').textContent = summary(plan);
+    $('plan-levels').replaceChildren();
+    if (c.mode === 'interval') {
+      for (const b of c.blocks) $('plan-levels').append(makeEl('span', `P${b.palier}: ${b.groups} × ${b.runSec}s`, 'level-chip'));
+    } else {
+      $('plan-levels').append(makeEl('span', `P${c.startPalier}–${c.endPalier} · ${c.stageSec}s each · no rest`, 'level-chip'));
+    }
     $('runner-note').textContent = running
       ? paused ? 'Paused. Resume to continue from the same position.' : isPrep ? 'Move to your starting line. Listen to the English 5–4–3–2–1 countdown.' : 'Reach each 20 m line when the beep sounds. Keep the app in the foreground.'
       : 'Mark two lines 20 metres apart. Raise Android media volume and keep the screen on during training.';
@@ -817,7 +922,7 @@ body.bright .timer-area{color:var(--text)}
       const card = makeEl('article', undefined, 'history-record');
       const top = makeEl('div', undefined, 'history-record-top');
       const info = makeEl('div');
-      const title = makeEl('strong', record.mode === 'test' ? 'Luc Léger Test' : 'Interval Training');
+      const title = makeEl('strong', record.mode === 'test' ? 'Luc Léger Simulation' : 'Multi-Palier Training');
       const date = makeEl('div', new Date(record.date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }), 'history-date');
       info.append(title, date);
       const deleteButton = makeEl('button', 'Delete', 'delete-record');
@@ -865,6 +970,25 @@ body.bright .timer-area{color:var(--text)}
   ui['settings-shortcut'].addEventListener('click', () => showScreen('settings'));
   ui['edit-plan'].addEventListener('click', () => showScreen('settings'));
   ui['save-and-train'].addEventListener('click', () => { if (!active()) setSettings(getInputSettings()); showScreen('train'); });
+  ui['add-block'].addEventListener('click', () => {
+    if (active() || cfg().blocks.length >= 20 || cfg().groups >= 120) return;
+    const last = cfg().blocks[cfg().blocks.length - 1];
+    setSettings({ ...cfg(), mode: 'interval', blocks: [...cfg().blocks, { palier: Math.min(30, last.palier + 1), groups: 2, runSec: 60, restSec: 90 }] });
+    document.querySelectorAll('.preset-button').forEach(p => p.classList.remove('chosen'));
+  });
+  ui['block-list'].addEventListener('change', e => {
+    if (e.target.matches('[data-field]')) commitBlockChange();
+  });
+  ui['block-list'].addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]'); if (!btn || active()) return;
+    const card = btn.closest('.block-card'); if (!card) return;
+    const index = Number(card.dataset.index);
+    const blocks = readBlocks();
+    if (btn.dataset.action === 'remove' && blocks.length > 1) blocks.splice(index, 1);
+    if (btn.dataset.action === 'up' && index > 0) [blocks[index-1], blocks[index]]=[blocks[index],blocks[index-1]];
+    if (btn.dataset.action === 'down' && index < blocks.length-1) [blocks[index+1], blocks[index]]=[blocks[index],blocks[index+1]];
+    setSettings({ ...cfg(), blocks });
+  });
   ui['start-button'].addEventListener('click', start);
   ui['pause-button'].addEventListener('click', () => active() && (state.session.paused ? resume() : pause()));
   ui['stop-button'].addEventListener('click', () => { if (active() && confirm('End this session and save the progress?')) finishSession(true); });
@@ -872,12 +996,9 @@ body.bright .timer-area{color:var(--text)}
   document.querySelectorAll('.preset-button').forEach(btn => btn.addEventListener('click', () => applyPreset(btn.dataset.preset)));
   const inputs = document.querySelectorAll('#screen-settings input, #screen-settings select');
   for (const input of inputs) {
+    if (input.matches('[data-field]')) continue; // handled by block-list delegation
     input.addEventListener('change', () => {
       if (active()) return;
-      if (input.id === 'mode') { // Both start-Palier controls share a single value.
-        const palier = cfg().startPalier;
-        ui.startPalierInterval.value = palier; ui.startPalierTest.value = palier;
-      }
       setSettings(getInputSettings());
       document.querySelectorAll('.preset-button').forEach(p => p.classList.remove('chosen'));
     });
