@@ -1,33 +1,32 @@
-# Luc Léger Trainer v1.5 — Android Source
+# Luc Léger Trainer v1.6 — Android
 
-Standalone, offline Android WebView app for a 20 m shuttle-run trainer. All app screens are in English. This is a **training simulator**, not an official exam audio recording or a Play Store release build.
+An offline Android trainer for the 20-metre shuttle run and customizable multi-Palier interval sessions.
 
-## Changes in v1.5
+## What's new in v1.6
 
-- **Multi-Palier Intervals:** create, edit, remove, or reorder up to 20 Palier blocks, each with its own Palier number, sets (1–30), run duration (10–600 s), and rest duration (0–600 s). Up to 120 sets total.
-- Intervals follow the exact order of the blocks. The last 10 seconds of the preceding set's configured rest become the next set's spoken 5–4–3–2–1 preparation. If rest is shorter than 10 seconds, a full 10-second preparation is added.
-- **Luc Léger Simulation:** one 10-second preparation followed by continuous running, automatic Palier progression, and no breaks. Default 60 seconds per level, Palier 1 at 8.5 km/h, +0.5 km/h per level. Simulated 20 m beeps are computed from cumulative distance, including changes of speed between turns.
-- Upcoming Palier and set, schedule summary, per-level plan chips, training history, and all previous v1.4 audio (louder beeps, distinct REST, English countdown, finish applause).
-- New installations include a two-Palier example plan. Prior v1.4 interval settings migrate into an editable level block (or one block per progressive set) automatically. Existing history and settings localStorage keys remain unchanged.
+- Replaces the embedded robotic English voice clips with **Android's installed English text-to-speech voice** (where available).
+- Adds **Countdown voice** settings:
+  - **Device English voice** (default), for spoken “Get ready”, “Five”, “Four”, “Three”, “Two”, “One”, “Go”, and “Rest”.
+  - **Gentle tones only**, for people who prefer no spoken prompts.
+- Uses more rounded tones, with clearly different run and rest chimes.
+- Retains the independently scheduled 20 m beeps, multi-Palier intervals, Luc Léger simulation, 10-second preparation, training history, and completion applause.
+- Stops spoken prompts on pause, backgrounding, or end of training.
 
-## Build / update existing GitHub repository
+### Make your English voice sound better
 
-The repository's Gradle project directory is still **`LucLeger-Android-v1.3/`**. This folder name has intentionally not changed; the Android version is `1.5.0` in `app/build.gradle`.
+The spoken voice comes from the speech engine and offline English voices **installed on the Android device**, not from a server. Results vary by phone and voice pack. In Android Settings, look for **Text-to-speech output** (sometimes under Accessibility or Language settings), select a preferred English voice, and install an improved local voice if available. Check media volume and use the **Test REST** and **Test 5–4–3–2–1** buttons in the app.
 
-Apply the v1.5 update zip at the repository root (overwrite matching files), commit and push. GitHub Actions builds a debug APK and uploads the artifact `LucLeger-Android-v1.5-APK`.
+Voice playback can have system-level latency. Precise 20 m beeps continue to use a separate AudioContext timeline. Keep the app in the foreground during training.
 
-The update modifies:
-- `LucLeger-Android-v1.3/app/src/main/assets/index.html`
-- `LucLeger-Android-v1.3/app/build.gradle`
-- `LucLeger-Android-v1.3/README.md`
-- `.github/workflows/build-apk.yml`
+## How to build and install
 
-## Safety and accuracy
+The Gradle project is stored under `LucLeger-Android-v1.3/` for compatibility with the existing GitHub Actions workflow; the *app version* is now **1.6.0**.
 
-Protocol variants exist: choose the correct starting speed and increment for your exam. This app's 60-second staging approximates the continuous Luc Léger test and **may not match the exact timing of an official audio track**, especially at stage boundaries. Practice on a marked 20 m course and test audio cues at safe volume beforehand. The app pauses in the background. Never assume beeps will continue on a locked screen.
+1. Push the source changes to `main`.
+2. Open **Actions → Build Real Android APK**.
+3. After a successful build, download artifact **LucLeger-Android-v1.6-APK**.
+4. Extract `app-debug.apk` and install it on your Android phone.
 
-## Install and records
+This is a debug APK, not a signed Google Play release build. If Android refuses to update an app signed with a different key, export training history before uninstalling.
 
-Debug APKs produced by different GitHub build runners might be signed with different debug certificates. If Android refuses an upgrade due to an incompatible signature, **export your session history as CSV before uninstalling**. Uninstalling the app can delete its local records. The package ID remains `com.lucleger.trainer`.
-
-See [GitHub Actions](https://github.com/wr0124/luc-leger-android/actions) for the build artifact.
+The app does not request internet access. Android system speech may be unavailable if no offline English TTS data is installed; select *Gentle tones only* in that case.

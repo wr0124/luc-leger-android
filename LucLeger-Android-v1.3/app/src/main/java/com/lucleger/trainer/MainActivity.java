@@ -3,6 +3,11 @@ package com.lucleger.trainer;
 import android.app.Activity;
 import android.content.Context;
 import android.media.AudioManager;
+import android.media.AudioAttributes;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
+import java.util.Locale;
+import java.util.Set;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
@@ -25,10 +30,38 @@ import android.net.Uri;
 public final class MainActivity extends Activity {
     private static final String LOCAL_URL = "file:///android_asset/index.html";
     private WebView webView;
+    private TextToSpeech speech;
+    private boolean speechReady = false;
+
+    private void configureSpeech() {
+        if (speech == null) return;
+        int status = speech.setLanguage(Locale.US);
+        if (status == TextToSpeech.LANG_MISSING_DATA || status == TextToSpeech.LANG_NOT_SUPPORTED) return;
+        speech.setSpeechRate(1.03f);
+        speech.setPitch(1.02f);
+        speech.setAudioAttributes(new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build());
+        // Prefer installed high-quality English voices. No network or internet permission needed.
+        Set<Voice> installed = speech.getVoices();
+        Voice best = null;
+        if (installed != null) for (Voice candidate : installed) {
+            if (!"en".equals(candidate.getLocale().getLanguage()) ||
+                candidate.isNetworkConnectionRequired()) continue;
+            if (best == null || candidate.getQuality() > best.getQuality()) best = candidate;
+        }
+        if (best != null) speech.setVoice(best);
+        speechReady = true;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Initialize device voice; local English speech is less robotic than bundled synthetic clips.
+        speech = new TextToSpeech(getApplicationContext(), status -> runOnUiThread(() -> {
+            if (status == TextToSpeech.SUCCESS) configureSpeech();
+        }));
         // Hardware volume keys adjust media volume while the trainer is open.
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         getWindow().setStatusBarColor(Color.rgb(13, 22, 31));
@@ -78,6 +111,7 @@ public final class MainActivity extends Activity {
                 "window.dispatchEvent(new Event('luc-native-background'));", null);
             webView.onPause();
         }
+        if (speech != null) speech.stop();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onPause();
     }
@@ -92,10 +126,33 @@ public final class MainActivity extends Activity {
     protected void onDestroy() {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (webView != null) { webView.destroy(); webView = null; }
+        if (speech != null) { speech.stop(); speech.shutdown(); speech = null; }
         super.onDestroy();
     }
 
     private final class NativeBridge {
+        @JavascriptInterface
+        public void speakCue(String text, float volume) {
+            // Never pass arbitrary WebView content to Android's speech engine.
+            if (text == null || !(text.equals("Get ready") || text.equals("Five") ||
+                text.equals("Four") || text.equals("Three") || text.equals("Two") ||
+                text.equals("One") || text.equals("Go") || text.equals("Rest"))) return;
+            runOnUiThread(() -> {
+                if (speechReady && speech != null) {
+                    Bundle params = new Bundle();
+                    params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,
+                        Math.max(0f, Math.min(1f, volume)));
+                    speech.speak(text, TextToSpeech.QUEUE_FLUSH, params,
+                        "luc-cue-" + System.nanoTime());
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void cancelSpeech() {
+            runOnUiThread(() -> { if (speech != null) speech.stop(); });
+        }
+
         @JavascriptInterface
         public void keepAwake(boolean enabled) {
             runOnUiThread(() -> {
