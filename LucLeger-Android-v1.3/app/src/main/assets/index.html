@@ -106,7 +106,7 @@ body.bright .timer-area{color:var(--text)}
 .training-card.beep-flash{border-color:var(--running);box-shadow:0 0 0 3px var(--running),0 0 32px #b8fc613a}
 
 </style>
-  <title>Luc Léger · 20m Trainer v1.6</title>
+  <title>Luc Léger · 20m Trainer v1.7</title>
   
   
 </head>
@@ -176,6 +176,7 @@ body.bright .timer-area{color:var(--text)}
         <div class="panel" id="interval-fields">
           <h2>Multi-Palier Training Plan</h2>
           <p class="input-help" style="margin:0 0 14px">Add levels in the order you want to run. Each Palier has its own sets, run duration and recovery. The last 10 seconds of recovery are your next GET READY countdown.</p>
+          <label class="switch-line"><span><strong>Finish sets on a 20 m line</strong><small>Recommended: rest starts at the final 20 m beep, never in the middle of a shuttle. Actual set length may differ slightly from the requested seconds.</small></span><input type="checkbox" id="alignShuttleEnd" role="switch" checked><span class="switch"></span></label>
           <div id="block-list" class="block-list" aria-label="Palier training blocks"></div>
           <button type="button" class="test-beep-button add-block-button" id="add-block">+ Add another Palier</button>
           <div id="block-total" class="formula-card" aria-live="polite"></div>
@@ -187,7 +188,7 @@ body.bright .timer-area{color:var(--text)}
             <label class="field">Final Palier<input id="endPalier" type="number" min="1" max="30" step="1" inputmode="numeric" value="10"></label>
             <label class="field">Time per level (sec)<input id="stageSec" type="number" min="30" max="180" step="10" inputmode="numeric" value="60"></label>
           </div>
-          <p class="input-help">Simulation: 10-second countdown, then continuous running with no rest, increasing by one Palier per stage. Default protocol is 60 sec per level, starting at 8.5 km/h and increasing by 0.5 km/h. The calculated beeps may differ from official exam recordings.</p>
+          <p class="input-help">Simulation: 10-second countdown, then continuous running with no rest, increasing by one Palier per stage. Default protocol is 60 sec per level, starting at 8.5 km/h and increasing by 0.5 km/h. With “Finish sets on a 20 m line” enabled, the very last stage extends to the next 20 m line. Intermediate stage changes remain time-based; they do not add rest. Calculated beeps may differ from official exam recordings.</p>
         </div>
         <div class="panel">
           <h2>Palier Speed Settings</h2>
@@ -260,7 +261,7 @@ body.bright .timer-area{color:var(--text)}
     mode: 'interval', groups: 4, runSec: 60, restSec: 90,
     startPalier: 1, progressive: false, endPalier: 10, stageSec: 60,
     baseSpeed: 8.5, speedStep: 0.5, shuttleMeters: 20,
-    blocks: null, sound: true, voiceMode: 'natural', vibrate: true, volume: 1, bright: false,
+    blocks: null, alignShuttleEnd: true, sound: true, voiceMode: 'natural', vibrate: true, volume: 1, bright: false,
   });
   function between(x, min, max, defaultValue) {
     const n = Number(x);
@@ -310,6 +311,7 @@ body.bright .timer-area{color:var(--text)}
       baseSpeed: between(x.baseSpeed, 4, 18, 8.5),
       speedStep: between(x.speedStep, 0, 2, 0.5),
       shuttleMeters: between(x.shuttleMeters, 10, 50, 20),
+      alignShuttleEnd: x.alignShuttleEnd !== false,
        sound: Boolean(x.sound), voiceMode: x.voiceMode === 'tones' ? 'tones' : 'natural', vibrate: Boolean(x.vibrate),
       volume: between(x.volume, 0, 1, 1), bright: Boolean(x.bright),
     };
@@ -351,13 +353,20 @@ body.bright .timer-area{color:var(--text)}
         const item = runs[i];
         const palier = item.palier;
         if (i === 0) addPreparation(palier, i + 1);
-        const run = pushSeg('run', item.runSec * 1000, palier, i + 1);
+        const gapMs = shuttleSec(palier, cfg) * 1000;
+        // Round requested duration to the NEAREST full shuttle for safe, line-aligned transitions.
+        // When exactly halfway, round up.  Example: P2 60s => 8 x 8s = 64s.
+        const shuttleCount = Math.max(1, Math.round(item.runSec * 1000 / gapMs + 1e-10));
+        const actualRunMs = cfg.alignShuttleEnd ? round(shuttleCount * gapMs) : item.runSec * 1000;
+        const run = pushSeg('run', actualRunMs, palier, i + 1);
         run.blockIndex = item.blockIndex; run.withinBlock = item.within + 1;
         run.blockGroups = cfg.blocks[item.blockIndex].groups;
         events.push({ t: run.start, type: 'run', palier, order: i + 1 });
-        const gapMs = shuttleSec(palier, cfg) * 1000;
-        for (let n = 1; run.start + n * gapMs < run.end - 0.001; n++) {
-          events.push({ t: round(run.start + n * gapMs), type: 'shuttle', palier, order: i + 1, number: n });
+        for (let n = 1; run.start + n * gapMs <= run.end + 0.001; n++) {
+          const finalBoundary = cfg.alignShuttleEnd && n === shuttleCount;
+          // Final shuttle is counted as completed. The finish sound itself includes its beep
+          // so that cancellation during finishSession cannot silence that last beep.
+          events.push({ t: round(Math.min(run.end, run.start + n * gapMs)), type: 'shuttle', palier, order: i + 1, number: n, finalBoundary });
         }
         if (i < runs.length - 1) {
           // Rest duration belongs to the completed set's block.
@@ -379,6 +388,21 @@ body.bright .timer-area{color:var(--text)}
         const seg = pushSeg('run', cfg.stageSec * 1000, palier, i + 1);
         events.push({ t: seg.start, type: 'stage', palier, order: i + 1 });
       }
+      // Optionally complete the very final test stage at the next full 20 m line.
+      // Intermediate Palier changes remain exactly stageSec seconds (continuous running).
+      if (cfg.alignShuttleEnd) {
+        const distanceTarget = Math.ceil((cumulativeDistance - 1e-8) / cfg.shuttleMeters) * cfg.shuttleMeters;
+        const additional = Math.max(0, distanceTarget - cumulativeDistance);
+        if (additional > 1e-8) {
+          const lastRun = segments[segments.length - 1];
+          const extensionMs = additional / (lastRun.speed / 3.6) * 1000;
+          lastRun.end = round(lastRun.end + extensionMs);
+          lastRun.durationMs = round(lastRun.durationMs + extensionMs);
+          lastRun.distEnd = distanceTarget;
+          cumulativeDistance = distanceTarget;
+          clock = lastRun.end;
+        }
+      }
       // One continuous distance timeline: 20 m cues remain aligned even when
       // the Palier changes halfway through a shuttle.
       const runs = segments.filter(s => s.kind === 'run');
@@ -386,11 +410,11 @@ body.bright .timer-area{color:var(--text)}
         const distance = n * cfg.shuttleMeters;
         const seg = runs.find(s => s.distEnd >= distance - 1e-8) || runs[runs.length - 1];
         const offsetMs = (distance - seg.distStart) / (seg.speed / 3.6) * 1000;
-        events.push({ t: round(Math.min(seg.end, seg.start + offsetMs)), type: 'shuttle', palier: seg.palier, order: seg.order, number: n });
+        events.push({ t: round(Math.min(seg.end, seg.start + offsetMs)), type: 'shuttle', palier: seg.palier, order: seg.order, number: n, finalBoundary: cfg.alignShuttleEnd && Math.abs(Math.min(seg.end, seg.start + offsetMs) - clock) < .01 });
       }
     }
     events.push({ t: round(clock), type: 'finish' });
-    const priority = { ready: 0, countdown: 0, stage: 0, run: 0, rest: 0, shuttle: 1, finish: 2 };
+    const priority = { shuttle: 0, ready: 1, countdown: 1, stage: 1, run: 1, rest: 1, finish: 2 };
     events.sort((a, b) => a.t - b.t || priority[a.type] - priority[b.type]);
     return { cfg, segments, events, totalMs: round(clock), totalDistanceM: cumulativeDistance };
   }
@@ -412,7 +436,7 @@ body.bright .timer-area{color:var(--text)}
     const t = Math.max(0, Math.min(plan.totalMs, elapsedMs));
     const seg = segmentAt(plan, t);
     const elapsedInSeg = Math.max(0, Math.min(seg.durationMs, t - seg.start));
-    const nextShuttle = seg.kind === 'run' ? plan.events.find(e => e.type === 'shuttle' && e.t > t + 0.001 && (plan.cfg.mode === 'test' || e.t < seg.end - 0.001)) : null;
+    const nextShuttle = seg.kind === 'run' ? plan.events.find(e => e.type === 'shuttle' && e.t > t + 0.001 && (plan.cfg.mode === 'test' || e.t <= seg.end + 0.001)) : null;
     const complete = t >= plan.totalMs;
     return {
       complete, elapsedMs: t, totalMs: plan.totalMs,
@@ -528,7 +552,7 @@ body.bright .timer-area{color:var(--text)}
       card.append(fields); list.append(card);
     });
     $('add-block').disabled = active() || blocks.length >= 20 || cfg().groups >= 120;
-    $('block-total').textContent = `${blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation`;
+    $('block-total').textContent = `${blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation${cfg().alignShuttleEnd ? ' · 20 m aligned' : ' · fixed-time sets'}`;
   }
   function commitBlockChange() {
     if (active()) return;
@@ -536,7 +560,7 @@ body.bright .timer-area{color:var(--text)}
     state.config = Core.normalize({ ...cfg(), blocks: readBlocks() });
     state.plan = Core.buildPlan(state.config);
     persist(SETTINGS_KEY, state.config);
-    $('block-total').textContent = `${cfg().blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation`;
+    $('block-total').textContent = `${cfg().blocks.length} Paliers · ${cfg().groups} sets · ${formatTime(state.plan.totalMs / 1000)} including recovery and preparation${cfg().alignShuttleEnd ? ' · 20 m aligned' : ' · fixed-time sets'}`;
     renderTrain();
     document.querySelectorAll('.preset-button').forEach(p => p.classList.remove('chosen'));
   }
@@ -552,7 +576,7 @@ body.bright .timer-area{color:var(--text)}
     renderBlocks();
     ui.startPalierTest.value = c.startPalier;
     ui.baseSpeed.value = String(c.baseSpeed);
-    for (const id of ['sound', 'vibrate', 'bright']) $(id).checked = c[id];
+    for (const id of ['sound', 'vibrate', 'bright', 'alignShuttleEnd']) $(id).checked = c[id];
      ui.voiceMode.value = c.voiceMode;
     ui.volume.value = Math.round(c.volume * 100);
     ui['volume-label'].textContent = `${Math.round(c.volume * 100)}%`;
@@ -582,7 +606,7 @@ body.bright .timer-area{color:var(--text)}
       blocks: readBlocks(),
       startPalier: sourcePalier.value, endPalier: ui.endPalier.value,
       stageSec: ui.stageSec.value, speedStep: ui.speedStep.value,
-      shuttleMeters: ui.shuttleMeters.value, baseSpeed: ui.baseSpeed.value,
+      shuttleMeters: ui.shuttleMeters.value, baseSpeed: ui.baseSpeed.value, alignShuttleEnd: ui.alignShuttleEnd.checked,
       sound: ui.sound.checked, voiceMode: ui.voiceMode.value,
       vibrate: ui.vibrate.checked, bright: ui.bright.checked,
       volume: Number(ui.volume.value) / 100,
@@ -610,7 +634,7 @@ body.bright .timer-area{color:var(--text)}
   function summary(plan) {
     const c = plan.cfg;
     const s = c.mode === 'interval'
-      ? `${c.blocks.length} Paliers · ${c.groups} sets · ${formatTime(plan.totalMs / 1000)} total (incl. prep/rest)`
+      ? `${c.blocks.length} Paliers · ${c.groups} sets · ${formatTime(plan.totalMs / 1000)} total (incl. prep/rest) · ${c.alignShuttleEnd ? '20 m aligned' : 'fixed-time'}`
       : `Palier ${c.startPalier}–${c.endPalier} · ${c.stageSec} sec/level · continuous shuttles`;
     return s;
   }
@@ -742,11 +766,14 @@ body.bright .timer-area{color:var(--text)}
       case 'stage':
         tone(730, .14, at, .75); tone(1000, .20, at + .15, .8); break;
       case 'rest':
-        // Low descending paired chimes sound unlike the rising GO cue.
-        tone(610, .22, at, .67); tone(410, .38, at + .26, .7); break;
+        // Start the REST chime after the final line beep instead of overlapping it.
+        tone(610, .22, at + .20, .67); tone(410, .38, at + .46, .7); break;
       case 'finish':
-        tone(690, .20, at, .6); tone(880, .23, at + .24, .60);
-        tone(1100, .33, at + .50, .6); voice('applause', at + .82); break;
+        // During finishSession, queued last-shuttle oscillators are cancelled. Explicitly
+        // replay that FINAL 20m beep at the actual end, then fanfare and applause.
+        if (cfg().alignShuttleEnd) tone(1050, .16, at, 1.15);
+        tone(690, .20, at + .24, .6); tone(880, .23, at + .48, .60);
+        tone(1100, .33, at + .74, .6); voice('applause', at + 1.06); break;
     }
   }
   // Speech does not drive timing: the Web Audio 20m beep remains clock-scheduled.
@@ -837,7 +864,7 @@ body.bright .timer-area{color:var(--text)}
     // Schedule beeps using the audio clock, not timer callback execution time.
     while (state.audioIndex < evs.length && evs[state.audioIndex].t <= ms + lookAhead) {
       const event = evs[state.audioIndex++];
-      if (event.t >= ms - 200 && event.type !== 'finish') playEvent(event, (event.t - ms) / 1000);
+      if (event.t >= ms - 200 && event.type !== 'finish' && !(event.type === 'shuttle' && event.finalBoundary && event.t >= state.plan.totalMs - .01)) playEvent(event, (event.t - ms) / 1000);
     }
     while (state.hapticIndex < evs.length && evs[state.hapticIndex].t <= ms) {
       const event = evs[state.hapticIndex++];

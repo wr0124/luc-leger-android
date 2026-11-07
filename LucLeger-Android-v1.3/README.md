@@ -1,8 +1,8 @@
-# Luc Léger Trainer v1.6 — Android
+# Luc Léger Trainer v1.7 — Android
 
 An offline Android trainer for the 20-metre shuttle run and customizable multi-Palier interval sessions.
 
-## What's new in v1.6
+## Audio updates from v1.6
 
 - Replaces the embedded robotic English voice clips with **Android's installed English text-to-speech voice** (where available).
 - Adds **Countdown voice** settings:
@@ -20,13 +20,18 @@ Voice playback can have system-level latency. Precise 20 m beeps continue to use
 
 ## How to build and install
 
-The Gradle project is stored under `LucLeger-Android-v1.3/` for compatibility with the existing GitHub Actions workflow; the *app version* is now **1.6.0**.
+The Gradle project is stored under `LucLeger-Android-v1.3/` for compatibility with the existing GitHub Actions workflow; the *app version* is now **1.7.0**.
 
 1. Push the source changes to `main`.
 2. Open **Actions → Build Real Android APK**.
-3. After a successful build, download artifact **LucLeger-Android-v1.6-APK**.
+3. After a successful build, download artifact **LucLeger-Android-v1.7-APK**.
 4. Extract `app-debug.apk` and install it on your Android phone.
 
 This is a debug APK, not a signed Google Play release build. If Android refuses to update an app signed with a different key, export training history before uninstalling.
 
 The app does not request internet access. Android system speech may be unavailable if no offline English TTS data is installed; select *Gentle tones only* in that case.
+
+
+## v1.7 — 20 m aligned finishes
+
+The new **Finish sets on a 20 m line** switch (enabled by default) rounds each interval to a whole number of shuttles at its selected Palier. Set duration is therefore approximate; the final 20 m beep marks the transition into rest. The last simulation stage can extend to its next 20 m line; intermediate stage times remain unchanged. Turn off the switch for strictly fixed-duration intervals. Spoken English cues are powered by the device speech system and may lag slightly behind the Web Audio beep clock.
